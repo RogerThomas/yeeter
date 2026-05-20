@@ -1,0 +1,62 @@
+version: "3"
+
+tasks:
+  install:
+    desc: Install the virtual environment and install the pre-commit hooks
+    cmds:
+      - echo "🚀 Creating virtual environment using uv"
+      - uv sync
+      - uv run pre-commit install
+
+  check:
+    desc: Run code quality tools
+    cmds:
+      - echo "🚀 Checking lock file consistency with 'pyproject.toml'"
+      - uv lock --locked
+      - echo "🚀 Linting code: Running pre-commit"
+      - uv run pre-commit run -a
+      - echo "🚀 Static type checking: Running pyright"
+      - uv run pyright
+      - echo "🚀 Checking for obsolete dependencies: Running deptry"
+      - uv run deptry .
+
+  test:
+    desc: Test the code with pytest
+    cmds:
+      - echo "🚀 Testing code: Running pytest"
+      - uv run python -m pytest --cov --cov-config=pyproject.toml --cov-report=xml
+
+  build:
+    desc: Build wheel file
+    deps: [clean-build]
+    cmds:
+      - echo "🚀 Creating wheel file"
+      - uvx --from build pyproject-build --installer uv
+
+  clean-build:
+    desc: Clean build artifacts
+    cmds:
+      - echo "🚀 Removing build artifacts"
+      - uv run python -c "import shutil; import os; shutil.rmtree('dist') if os.path.exists('dist') else None"
+
+  publish:
+    desc: Publish a release to PyPI
+    cmds:
+      - echo "🚀 Publishing."
+      - uvx twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
+
+  build-and-publish:
+    desc: Build and publish
+    cmds:
+      - task: build
+      - task: publish
+
+  docs-test:
+    desc: Test if documentation can be built without warnings or errors
+    cmds:
+      - uv run mkdocs build -s
+
+  docs:
+    desc: Build and serve the documentation
+    cmds:
+      - uv run mkdocs serve
