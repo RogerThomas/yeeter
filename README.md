@@ -11,6 +11,8 @@ A tiny, typed, signature-driven CLI runner.
 > No ceremony.
 > Just yeet the function.
 
+---
+
 ## Minimal example
 
 ```python
@@ -30,6 +32,8 @@ uv run app.py 5 --n 0.2
 Note the bare `*` in the signature: parameters **before** it become
 positional CLI args, parameters **after** it become `--options`. That's
 the whole mapping — no decorators, no per-parameter annotations needed.
+
+---
 
 ## Async
 
@@ -58,6 +62,8 @@ uv add "yeeter[uvloop]"
 When `uvloop` is importable, yeeter uses it transparently — no code
 change required. Otherwise it falls back to the stdlib event loop.
 
+---
+
 ## Path
 
 ```python
@@ -72,6 +78,8 @@ def main(path: Path, *, output: Path | None = None) -> None:
 uv run app.py input.pdf --output out.txt
 ```
 
+---
+
 ## Literal choices
 
 ```python
@@ -85,6 +93,8 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
 ```
 uv run app.py --format csv
 ```
+
+---
 
 ## `Arg` and `Opt` metadata
 
@@ -114,6 +124,8 @@ accepts `alias`, `aliases`, `help`, `metavar`, `envvar`, `hidden`, and the
 path validators below. Mixing them (e.g. `Opt` on a positional or `Arg` on a
 keyword-only parameter) raises a clear `YeeterError`.
 
+---
+
 ## Environment variable fallback (`Opt(envvar=...)`)
 
 `Opt(envvar="NAME")` falls back to an environment variable when the flag is
@@ -138,6 +150,8 @@ Env-var values are type-coerced just like CLI values. `bool` accepts
 `1/0/true/false/yes/no` (case-insensitive). `list[T]` splits on `os.pathsep`
 (`:` on POSIX, `;` on Windows). `Literal` choices are validated.
 
+---
+
 ## Hidden options (`Opt(hidden=True)`)
 
 Hidden options still parse from the CLI but are absent from `--help` (both
@@ -151,6 +165,8 @@ from yeeter import Opt
 def main(*, debug: Annotated[bool, Opt(hidden=True)] = False) -> None:
     ...
 ```
+
+---
 
 ## Path validators
 
@@ -175,6 +191,8 @@ Defaults mirror typer: `file_okay=True`, `dir_okay=True`, others off.
 Setting any path-check on a non-`Path` parameter raises `YeeterError` at
 parser-build time. Validators also apply to `list[Path]` and to
 `*paths: Path`.
+
+---
 
 ## Variadic positional args (`*args`)
 
@@ -213,6 +231,8 @@ supported.
 accepted by Pyright in strict mode. The `Annotated` form is verbose but is
 the only way to attach per-parameter metadata that fully type-checks.
 
+---
+
 ## Rules
 
 - **Positional** parameters become positional CLI args.
@@ -225,10 +245,14 @@ the only way to attach per-parameter metadata that fully type-checks.
   `None` as default.
 - `list[T]` becomes a repeated option (`--tag a --tag b`).
 
+---
+
 ## Supported types
 
 `str`, `int`, `float`, `bool`, `pathlib.Path`, `typing.Literal[...]`,
 `T | None`, `list[T]`. Anything else raises a clear `YeeterError`.
+
+---
 
 ## Logging
 
@@ -262,6 +286,8 @@ not touch them. To take full control of logging yourself, opt out:
 yeeter.run(main, should_setup_logging=False)
 ```
 
+---
+
 ## Testing
 
 `run()` accepts an explicit `argv` for tests:
@@ -269,6 +295,8 @@ yeeter.run(main, should_setup_logging=False)
 ```python
 yeeter.run(main, argv=["5", "--n", "0.2"])
 ```
+
+---
 
 ## yeeter vs. typer
 
@@ -295,6 +323,8 @@ the problem. Quick honest comparison so you can pick the right tool:
 If you need subcommands or shell completion, use typer. If you want one
 function = one CLI with minimal ceremony and strict typing, yeeter is
 designed for that.
+
+---
 
 ## Development
 
