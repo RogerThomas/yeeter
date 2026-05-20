@@ -15,35 +15,32 @@ import logging
 from pathlib import Path
 from typing import Annotated, Literal
 
-from rich.logging import RichHandler
-
-import yeeter
-from yeeter import Param
+from yeeter import Arg, Opt, run
 
 logger = logging.getLogger("main")
 
 
-type Workers = Annotated[int, Param(alias="-w", help="Worker count")]
+type Workers = Annotated[int, Opt(alias="-w", help="Worker count")]
 
 
 async def main(
     # --- positional args (no `*` yet) ---
     pdf_path: Path,
     # Positional with help text via `Annotated`.
-    out_dir: Annotated[Path, Param(help="Where to write outputs", metavar="OUT")] = Path("output"),
+    out_dir: Annotated[Path, Arg(help="Where to write outputs", metavar="OUT")] = Path("output"),
     *,
     # --- required keyword-only options ---
     # Required option with a Literal -> generates `--mode {a,b,c}`.
     mode: Literal["a", "b", "c"],
     # Required option with an alias.
-    output: Annotated[Path, Param(alias="-o", help="Output file path")],
+    output: Annotated[Path, Opt(alias="-o", help="Output file path")],
     # --- bool flags ---
     # `bool = False` -> `--dry-run` enables it.
     dry_run: bool = False,
     # `bool = True` -> `--no-progress` disables it.
     progress: bool = True,
     # Bool flag with a short alias.
-    quiet: Annotated[bool, Param(alias="-q", help="Suppress chatter")] = False,
+    quiet: Annotated[bool, Opt(alias="-q", help="Suppress chatter")] = False,
     # --- numbers ---
     workers: Workers = 4,
     threshold: float = 0.5,
@@ -52,17 +49,11 @@ async def main(
     # --- literals as choices with default ---
     log_level: Literal["debug", "info", "warning", "error"] = "info",
     # --- repeated options -> list[T] ---
-    tag: Annotated[list[str], Param(alias="-t", help="Repeatable tag")] = [],  # noqa: B006
+    tag: Annotated[list[int], Opt(alias="-t", help="Repeatable tag")] = [],
     # --- multiple aliases ---
-    name: Annotated[str, Param(aliases=("-n", "--who"), help="Who to greet")] = "world",
+    name: Annotated[str, Opt(aliases=("-n", "--who"), help="Who to greet")] = "world",
 ) -> None:
     """Demo command showing every supported parameter style."""
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format="%(message)s",
-        handlers=[RichHandler(show_time=False, show_level=False)],
-    )
-
     if not quiet:
         logger.info("pdf_path     = %s", pdf_path)
         logger.info("out_dir      = %s", out_dir)
@@ -79,9 +70,4 @@ async def main(
 
 
 if __name__ == "__main__":
-    # Both of these work identically:
-    import typer
-
-    # typer.run(main)
-    yeeter.run(main)
-    # yeeter(main)
+    run(main)

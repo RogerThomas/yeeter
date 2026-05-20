@@ -1,6 +1,8 @@
 import argparse
 import asyncio
 import inspect
+import logging
+import os
 import sys
 import types
 import typing
@@ -11,11 +13,24 @@ from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.table import Table
 from rich.text import Text
 from rich_argparse import RichHelpFormatter
 
-from ._metadata import Param
+from ._metadata import Arg, Opt
+
+
+@dataclass(slots=True)
+class _PathChecks:
+    exists: bool = False
+    file_okay: bool = True
+    dir_okay: bool = True
+    readable: bool = False
+    writable: bool = False
+
+    def is_active(self) -> bool:
+        return self.exists or not self.file_okay or not self.dir_okay or self.readable or self.writable
 
 
 @dataclass
@@ -30,6 +45,14 @@ class _ParamInfo:
     choices: list[str] = field(default_factory=list[str])
     help_text: str = ""
     metavar: str | None = None
+    is_var_positional: bool = False
+    envvar: str | None = None
+    hidden: bool = False
+    effective_type: Any = None
+    is_list: bool = False
+    is_literal: bool = False
+    has_default: bool = False
+    default: Any = None
 
 
 def _type_label(effective: Any, is_list: bool, is_literal: bool) -> str:
@@ -78,22 +101,117 @@ def _with_default_suffix(help_text: str | None, default: Any) -> str:
 def _is_optional(annotation: Any) -> tuple[bool, Any]:
     origin = get_origin(annotation)
     if origin is typing.Union or origin is types.UnionType:
-        args = [a for a in get_args(annotation) if a is not type(None)]
+        args = [_resolve_type_alias(a) for a in get_args(annotation) if a is not type(None)]
         if len(args) == 1 and len(get_args(annotation)) == 2:
             return True, args[0]
     return False, annotation
 
 
-def _unwrap_annotated(annotation: Any) -> tuple[Any, Param]:
-    metadata = Param()
+def _resolve_type_alias(annotation: Any) -> Any:
+    while isinstance(annotation, typing.TypeAliasType):
+        annotation = annotation.__value__
+    return annotation
+
+
+def _merge_arg(outer: Arg, inner: Arg) -> Arg:
+    return Arg(
+        help=outer.help if outer.help is not None else inner.help,
+        metavar=outer.metavar if outer.metavar is not None else inner.metavar,
+        min=outer.min if outer.min else inner.min,
+        exists=outer.exists or inner.exists,
+        file_okay=outer.file_okay and inner.file_okay,
+        dir_okay=outer.dir_okay and inner.dir_okay,
+        readable=outer.readable or inner.readable,
+        writable=outer.writable or inner.writable,
+    )
+
+
+def _merge_opt(outer: Opt, inner: Opt) -> Opt:
+    return Opt(
+        alias=outer.alias if outer.alias is not None else inner.alias,
+        aliases=outer.aliases if outer.aliases else inner.aliases,
+        help=outer.help if outer.help is not None else inner.help,
+        metavar=outer.metavar if outer.metavar is not None else inner.metavar,
+        envvar=outer.envvar if outer.envvar is not None else inner.envvar,
+        hidden=outer.hidden or inner.hidden,
+        exists=outer.exists or inner.exists,
+        file_okay=outer.file_okay and inner.file_okay,
+        dir_okay=outer.dir_okay and inner.dir_okay,
+        readable=outer.readable or inner.readable,
+        writable=outer.writable or inner.writable,
+    )
+
+
+def _merge_metadata(outer: Arg | Opt | None, inner: Arg | Opt | None) -> Arg | Opt | None:
+    if outer is None:
+        return inner
+    if inner is None:
+        return outer
+    if isinstance(outer, Arg) and isinstance(inner, Arg):
+        return _merge_arg(outer, inner)
+    if isinstance(outer, Opt) and isinstance(inner, Opt):
+        return _merge_opt(outer, inner)
+    return outer
+
+
+def _unwrap_annotated(annotation: Any) -> tuple[Any, Arg | Opt | None]:
+    annotation = _resolve_type_alias(annotation)
+    metadata: Arg | Opt | None = None
     if get_origin(annotation) is typing.Annotated:
         args = get_args(annotation)
         base = args[0]
         for extra in args[1:]:
-            if isinstance(extra, Param):
+            if isinstance(extra, (Arg, Opt)):
                 metadata = extra
-        return base, metadata
+        inner_base, inner_metadata = _unwrap_annotated(base)
+        return inner_base, _merge_metadata(metadata, inner_metadata)
     return annotation, metadata
+
+
+def _path_checks_from(metadata: Arg | Opt | None) -> _PathChecks:
+    if metadata is None:
+        return _PathChecks()
+    return _PathChecks(
+        exists=metadata.exists,
+        file_okay=metadata.file_okay,
+        dir_okay=metadata.dir_okay,
+        readable=metadata.readable,
+        writable=metadata.writable,
+    )
+
+
+def _validate_path_checks_target(
+    checks: _PathChecks,
+    effective: Any,
+    is_list: bool,
+    param_name: str,
+) -> None:
+    if not checks.is_active():
+        return
+    target = effective
+    if is_list:
+        (inner_t,) = get_args(effective)
+        target = inner_t
+    if target is not Path:
+        raise YeeterError(
+            f"Path validators (exists/file_okay/dir_okay/readable/writable) are only valid on `Path` "
+            f"parameters; parameter {param_name!r} is of type {getattr(target, '__name__', target)!r}.",
+        )
+
+
+def _apply_path_checks(path: Path, checks: _PathChecks) -> Path:
+    if checks.exists and not path.exists():
+        raise argparse.ArgumentTypeError(f"path must exist: {path}")
+    if path.exists():
+        if not checks.file_okay and path.is_file():
+            raise argparse.ArgumentTypeError(f"not a regular file allowed: {path}")
+        if not checks.dir_okay and path.is_dir():
+            raise argparse.ArgumentTypeError(f"not a directory allowed: {path}")
+    if checks.readable and not os.access(path, os.R_OK):
+        raise argparse.ArgumentTypeError(f"path is not readable: {path}")
+    if checks.writable and not os.access(path, os.W_OK):
+        raise argparse.ArgumentTypeError(f"path is not writable: {path}")
+    return path
 
 
 def _coerce_value(raw: str, target: Any, param_name: str) -> Any:
@@ -121,9 +239,16 @@ def _coerce_value(raw: str, target: Any, param_name: str) -> Any:
     raise YeeterError(f"Unsupported type {target!r} for parameter {param_name!r}.")
 
 
-def _type_caster(target: Any, param_name: str) -> Callable[[str], Any]:
+def _type_caster(
+    target: Any,
+    param_name: str,
+    path_checks: _PathChecks | None = None,
+) -> Callable[[str], Any]:
     def cast(raw: str) -> Any:
-        return _coerce_value(raw, target, param_name)
+        value = _coerce_value(raw, target, param_name)
+        if target is Path and path_checks is not None and path_checks.is_active():
+            return _apply_path_checks(value, path_checks)
+        return value
 
     cast.__name__ = getattr(target, "__name__", "value")
     return cast
@@ -143,6 +268,59 @@ def _literal_caster(choices: tuple[Any, ...], param_name: str) -> Callable[[str]
     return cast
 
 
+def _add_var_positional(
+    parser: argparse.ArgumentParser,
+    param: Parameter,
+) -> _ParamInfo:
+    annotation = param.annotation
+    if annotation is Parameter.empty:
+        raise YeeterError(f"Parameter {param.name!r} is missing a type annotation.")
+
+    base, metadata = _unwrap_annotated(annotation)
+
+    if isinstance(metadata, Opt):
+        raise YeeterError(
+            f"Variadic positional parameter {param.name!r} is annotated with `Opt`; use `Arg` on `*args`.",
+        )
+
+    if get_origin(base) is list:
+        raise YeeterError(
+            f"Variadic positional parameter {param.name!r} is annotated as `list[T]`; "
+            f"annotate `*{param.name}` with the element type `T` instead.",
+        )
+
+    arg_meta = metadata if isinstance(metadata, Arg) else None
+    help_text = arg_meta.help if arg_meta is not None else None
+    metavar = arg_meta.metavar if arg_meta is not None else None
+    minimum = arg_meta.min if arg_meta is not None else 0
+
+    path_checks = _path_checks_from(arg_meta)
+    _validate_path_checks_target(path_checks, base, is_list=False, param_name=param.name)
+
+    nargs = "+" if minimum >= 1 else "*"
+    display_metavar = metavar or _snake_to_kebab(param.name).upper()
+
+    parser.add_argument(
+        param.name,
+        nargs=nargs,
+        type=_type_caster(base, param.name, path_checks),
+        metavar=display_metavar,
+        help=help_text,
+    )
+
+    return _ParamInfo(
+        name=param.name,
+        is_positional=True,
+        is_var_positional=True,
+        type_label=getattr(base, "__name__", str(base)),
+        default_label="",
+        required=minimum >= 1,
+        help_text=help_text or "",
+        metavar=display_metavar,
+        effective_type=base,
+    )
+
+
 def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamInfo:
     annotation = param.annotation
     if annotation is Parameter.empty:
@@ -156,12 +334,28 @@ def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamI
     has_default = param.default is not Parameter.empty
     default = param.default if has_default else None
 
+    if is_keyword_only and isinstance(metadata, Arg):
+        raise YeeterError(
+            f"Parameter {param.name!r} is keyword-only but is annotated with `Arg`; "
+            f"use `Opt` for keyword-only parameters.",
+        )
+    if not is_keyword_only and isinstance(metadata, Opt):
+        raise YeeterError(
+            f"Parameter {param.name!r} is positional but is annotated with `Opt`; use `Arg` for positional parameters.",
+        )
+
     origin = get_origin(effective)
     is_list = origin is list
     is_literal = origin is Literal
 
-    help_text = metadata.help
-    metavar = metadata.metavar
+    help_text = metadata.help if metadata is not None else None
+    metavar = metadata.metavar if metadata is not None else None
+
+    path_checks = _path_checks_from(metadata)
+    _validate_path_checks_target(path_checks, effective, is_list, param.name)
+
+    envvar = metadata.envvar if isinstance(metadata, Opt) else None
+    hidden = metadata.hidden if isinstance(metadata, Opt) else False
 
     info = _ParamInfo(
         name=param.name,
@@ -172,10 +366,18 @@ def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamI
         choices=[str(c) for c in get_args(effective)] if is_literal else [],
         help_text=help_text or "",
         metavar=metavar,
+        envvar=envvar,
+        hidden=hidden,
+        effective_type=effective,
+        is_list=is_list,
+        is_literal=is_literal,
+        has_default=has_default,
+        default=default,
     )
 
     if is_keyword_only:
-        flags = _build_flags(param.name, metadata)
+        opt_metadata = metadata if isinstance(metadata, Opt) else None
+        flags = _build_flags(param.name, opt_metadata)
         _add_option(
             parser=parser,
             param_name=param.name,
@@ -187,6 +389,7 @@ def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamI
             default=default,
             help_text=help_text,
             metavar=metavar,
+            path_checks=path_checks,
         )
         long_flag, aliases = _split_flags_for_display(param.name, flags, effective, default)
         info.long_flag = long_flag
@@ -202,6 +405,7 @@ def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamI
             default=default,
             help_text=help_text,
             metavar=metavar,
+            path_checks=path_checks,
         )
     return info
 
@@ -219,12 +423,13 @@ def _split_flags_for_display(
     return primary, others
 
 
-def _build_flags(param_name: str, metadata: Param) -> list[str]:
+def _build_flags(param_name: str, metadata: Opt | None) -> list[str]:
     long_flag = f"--{_snake_to_kebab(param_name)}"
     extras: list[str] = []
-    if metadata.alias:
-        extras.append(metadata.alias)
-    extras.extend(metadata.aliases)
+    if metadata is not None:
+        if metadata.alias:
+            extras.append(metadata.alias)
+        extras.extend(metadata.aliases)
     shorts = [f for f in extras if f.startswith("-") and not f.startswith("--")]
     longs = [f for f in extras if f.startswith("--")]
     return [*shorts, long_flag, *longs]
@@ -388,10 +593,13 @@ def _build_parser(func: Callable[..., Any], prog: str | None = None) -> tuple[ar
     )
     infos: list[_ParamInfo] = []
     for param in sig.parameters.values():
-        if param.kind in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD):
+        if param.kind is Parameter.VAR_KEYWORD:
             raise YeeterError(
-                f"Variadic parameter {param.name!r} is not supported.",
+                f"Variadic keyword parameter **{param.name} is not supported.",
             )
+        if param.kind is Parameter.VAR_POSITIONAL:
+            infos.append(_add_var_positional(parser, param))
+            continue
         infos.append(_add_parameter(parser, param))
     _install_rich_help(parser, resolved_prog, doc, infos)
     return parser, sig
@@ -406,7 +614,16 @@ def _install_rich_help(
     def print_help(file: Any = None) -> None:
         _render_rich_help(prog, doc, infos, file=file)
 
+    def error(message: str) -> None:
+        _render_rich_help(prog, doc, infos, file=sys.stderr)
+        console = Console(file=sys.stderr)
+        console.print()
+        console.print(Text("Errors:", style="bold red"))
+        console.print(f"{prog}: error: {message}", style="red")
+        parser.exit(2)
+
     parser.print_help = print_help  # type: ignore[method-assign]
+    parser.error = error  # type: ignore[method-assign]
 
 
 def _build_usage(prog: str, infos: list[_ParamInfo]) -> str:
@@ -424,7 +641,10 @@ def _build_usage(prog: str, infos: list[_ParamInfo]) -> str:
     for info in infos:
         if info.is_positional:
             display = info.metavar or _snake_to_kebab(info.name).upper()
-            parts.append(display if info.required else f"[{display}]")
+            if info.is_var_positional:
+                parts.append(f"{display} [{display} ...]" if info.required else f"[{display} ...]")
+            else:
+                parts.append(display if info.required else f"[{display}]")
     return " ".join(parts)
 
 
@@ -518,11 +738,32 @@ def _default_prog() -> str:
     return Path(argv0).name or "app"
 
 
-def _build_call_kwargs(sig: Signature, namespace: argparse.Namespace) -> dict[str, Any]:
+def _build_call_args(sig: Signature, namespace: argparse.Namespace) -> tuple[list[Any], dict[str, Any]]:
+    has_var_positional = any(p.kind is Parameter.VAR_POSITIONAL for p in sig.parameters.values())
+    args: list[Any] = []
     kwargs: dict[str, Any] = {}
-    for name in sig.parameters:
-        kwargs[name] = getattr(namespace, name)
-    return kwargs
+    for name, param in sig.parameters.items():
+        value = getattr(namespace, name)
+        if param.kind is Parameter.VAR_POSITIONAL:
+            args.extend(value)
+        elif has_var_positional and param.kind is not Parameter.KEYWORD_ONLY:
+            args.append(value)
+        else:
+            kwargs[name] = value
+    return args, kwargs
+
+
+def _setup_logging(namespace: argparse.Namespace) -> None:
+    if logging.getLogger().handlers:
+        return
+    raw_level = getattr(namespace, "log_level", "info")
+    level_name = raw_level.upper() if isinstance(raw_level, str) else "INFO"
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s]: %(message)s",
+        handlers=[RichHandler(show_time=False, show_level=False)],
+    )
 
 
 def run[T](
@@ -530,6 +771,7 @@ def run[T](
     argv: Sequence[str] | None = None,
     *,
     prog: str | None = None,
+    should_setup_logging: bool = True,
 ) -> T:
     """Run ``func`` as a CLI.
 
@@ -540,12 +782,22 @@ def run[T](
     If ``func`` is async, the coroutine is executed via ``asyncio.run``.
 
     Pass ``argv`` to bypass ``sys.argv`` (useful for tests).
+
+    When ``should_setup_logging`` is ``True`` (the default), Rich-based
+    logging is configured after argument parsing and before invoking
+    ``func``. If the parsed namespace contains a ``log_level`` string, its
+    value drives the level; otherwise INFO is used. Setup is idempotent:
+    if the root logger already has handlers, no changes are made. Set
+    ``should_setup_logging=False`` to take full control of logging
+    yourself.
     """
     parser, sig = _build_parser(func, prog=prog)
     raw_argv = list(sys.argv[1:]) if argv is None else list(argv)
     namespace = parser.parse_args(raw_argv)
-    call_kwargs = _build_call_kwargs(sig, namespace)
-    result = func(**call_kwargs)
+    if should_setup_logging:
+        _setup_logging(namespace)
+    call_args, call_kwargs = _build_call_args(sig, namespace)
+    result = func(*call_args, **call_kwargs)
     if inspect.iscoroutine(result):
         return typing.cast(T, asyncio.run(result))
     return typing.cast(T, result)

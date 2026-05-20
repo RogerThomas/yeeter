@@ -213,3 +213,11 @@ __marimo__/
 
 # Custom
 .in
+
+# Sandbox / scratch
+_compare/
+script.py
+t.py
+
+# Tickets are local-only
+tickets/

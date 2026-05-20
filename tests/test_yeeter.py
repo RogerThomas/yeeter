@@ -1,11 +1,27 @@
 import asyncio
+import logging
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated, Literal
 
 import pytest
+from rich.logging import RichHandler
 
 import yeeter
-from yeeter import Param, YeeterError
+from yeeter import Arg, Opt, YeeterError
+
+
+@pytest.fixture(autouse=True)
+def _reset_root_logger() -> Iterator[None]:  # pyright: ignore[reportUnusedFunction]
+    root = logging.getLogger()
+    saved_handlers = list(root.handlers)
+    saved_level = root.level
+    yield
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+    for handler in saved_handlers:
+        root.addHandler(handler)
+    root.setLevel(saved_level)
 
 
 def test_positional_and_keyword_default() -> None:
@@ -147,10 +163,10 @@ def test_list_repeated_options() -> None:
     assert captured == {"tag": ["a", "b"]}
 
 
-def test_param_alias_and_help() -> None:
+def test_opt_alias_and_help() -> None:
     captured: dict[str, object] = {}
 
-    def main(*, workers: Annotated[int, Param(alias="-w", help="Worker count")] = 4) -> None:
+    def main(*, workers: Annotated[int, Opt(alias="-w", help="Worker count")] = 4) -> None:
         captured["workers"] = workers
 
     yeeter.run(main, argv=["-w", "8"])
@@ -160,10 +176,10 @@ def test_param_alias_and_help() -> None:
     assert captured == {"workers": 3}
 
 
-def test_param_no_default_required() -> None:
+def test_opt_no_default_required() -> None:
     captured: dict[str, object] = {}
 
-    def main(*, workers: Annotated[int, Param(alias="-w", help="Worker count")]) -> None:
+    def main(*, workers: Annotated[int, Opt(alias="-w", help="Worker count")]) -> None:
         captured["workers"] = workers
 
     yeeter.run(main, argv=["-w", "8"])
@@ -173,14 +189,30 @@ def test_param_no_default_required() -> None:
         yeeter.run(main, argv=[])
 
 
-def test_param_on_positional() -> None:
+def test_arg_on_positional() -> None:
     captured: dict[str, object] = {}
 
-    def main(path: Annotated[Path, Param(help="Input file")]) -> None:
+    def main(path: Annotated[Path, Arg(help="Input file")]) -> None:
         captured["path"] = path
 
     yeeter.run(main, argv=["x.txt"])
     assert captured == {"path": Path("x.txt")}
+
+
+def test_opt_on_positional_raises() -> None:
+    def main(path: Annotated[Path, Opt(alias="-p")]) -> None:
+        del path
+
+    with pytest.raises(YeeterError, match="Arg"):
+        yeeter.run(main, argv=["x.txt"])
+
+
+def test_arg_on_keyword_only_raises() -> None:
+    def main(*, workers: Annotated[int, Arg(help="nope")] = 4) -> None:
+        del workers
+
+    with pytest.raises(YeeterError, match="Opt"):
+        yeeter.run(main, argv=[])
 
 
 def test_missing_annotation_errors() -> None:
@@ -198,15 +230,181 @@ def test_returns_function_result() -> None:
     assert yeeter.run(main, argv=["5"]) == 10
 
 
-def test_module_is_callable() -> None:
+type _Workers = Annotated[int, Opt(alias="-w", help="Worker count")]
+type _Count = int
+type _MaybeInt = int | None
+type _AliasChain = _Workers
+
+
+def test_type_alias_annotated_param() -> None:
     captured: dict[str, object] = {}
 
-    def main(thing: int, *, n: float = 0.1) -> None:
-        captured["thing"] = thing
-        captured["n"] = n
+    def main(*, workers: _Workers = 4) -> None:
+        captured["workers"] = workers
 
-    yeeter(main, argv=["5", "--n", "0.2"])  # pyright: ignore[reportCallIssue]
-    assert captured == {"thing": 5, "n": 0.2}
+    yeeter.run(main, argv=["-w", "8"])
+    assert captured == {"workers": 8}
+
+    yeeter.run(main, argv=["--workers", "3"])
+    assert captured == {"workers": 3}
+
+    yeeter.run(main, argv=[])
+    assert captured == {"workers": 4}
+
+
+def test_type_alias_bare_type() -> None:
+    captured: dict[str, object] = {}
+
+    def main(count: _Count) -> None:
+        captured["count"] = count
+
+    yeeter.run(main, argv=["7"])
+    assert captured == {"count": 7}
+
+
+def test_type_alias_in_optional() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, value: _MaybeInt = None) -> None:
+        captured["value"] = value
+
+    yeeter.run(main, argv=["--value", "5"])
+    assert captured == {"value": 5}
+
+    yeeter.run(main, argv=[])
+    assert captured == {"value": None}
+
+
+def test_type_alias_transitive() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, workers: _AliasChain = 4) -> None:
+        captured["workers"] = workers
+
+    yeeter.run(main, argv=["-w", "8"])
+    assert captured == {"workers": 8}
+
+
+def test_type_alias_help_renders_inner_type() -> None:
+    from io import StringIO
+
+    from rich.console import Console
+
+    from yeeter._runner import _build_parser  # pyright: ignore[reportPrivateUsage]
+
+    def main(*, workers: _Workers = 4) -> None:
+        del workers
+
+    parser, _ = _build_parser(main, prog="app")
+    buf = StringIO()
+    console = Console(file=buf, force_terminal=False, width=200)
+    parser.print_help(file=console.file)
+    output = buf.getvalue()
+    assert "int" in output
+    assert "Workers" not in output
+    assert "-w" in output
+    assert "Worker count" in output
+
+
+def test_type_alias_outer_opt_overrides() -> None:
+    captured: dict[str, object] = {}
+
+    def main(
+        *,
+        workers: Annotated[_Workers, Opt(alias="-x", help="Override")] = 4,
+    ) -> None:
+        captured["workers"] = workers
+
+    yeeter.run(main, argv=["-x", "9"])
+    assert captured == {"workers": 9}
+
+    yeeter.run(main, argv=["--workers", "2"])
+    assert captured == {"workers": 2}
+
+
+def test_var_positional_zero_or_more() -> None:
+    captured: dict[str, object] = {}
+
+    def main(dst: Path, *sources: Path) -> None:
+        captured["dst"] = dst
+        captured["sources"] = sources
+
+    yeeter.run(main, argv=["dst", "a", "b", "c"])
+    assert captured == {"dst": Path("dst"), "sources": (Path("a"), Path("b"), Path("c"))}
+
+
+def test_var_positional_empty_is_tuple() -> None:
+    captured: dict[str, object] = {}
+
+    def main(dst: Path, *sources: Path) -> None:
+        captured["dst"] = dst
+        captured["sources"] = sources
+
+    yeeter.run(main, argv=["dst"])
+    assert captured == {"dst": Path("dst"), "sources": ()}
+
+
+def test_var_positional_with_arg_metadata() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*sources: Annotated[Path, Arg(help="Source paths", metavar="SRC")]) -> None:
+        captured["sources"] = sources
+
+    yeeter.run(main, argv=["a", "b"])
+    assert captured == {"sources": (Path("a"), Path("b"))}
+
+
+def test_var_positional_min_one_required() -> None:
+    def main(*sources: Annotated[Path, Arg(min=1)]) -> None:
+        del sources
+
+    with pytest.raises(SystemExit):
+        yeeter.run(main, argv=[])
+
+
+def test_var_positional_min_one_accepts_values() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*sources: Annotated[Path, Arg(min=1)]) -> None:
+        captured["sources"] = sources
+
+    yeeter.run(main, argv=["a"])
+    assert captured == {"sources": (Path("a"),)}
+
+
+def test_var_positional_with_keyword_only() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*sources: str, loud: bool = False) -> None:
+        captured["sources"] = sources
+        captured["loud"] = loud
+
+    yeeter.run(main, argv=["a", "b", "--loud"])
+    assert captured == {"sources": ("a", "b"), "loud": True}
+
+
+def test_var_positional_list_annotation_rejected() -> None:
+    def main(*sources: list[Path]) -> None:
+        del sources
+
+    with pytest.raises(YeeterError, match="list"):
+        yeeter.run(main, argv=["a"])
+
+
+def test_var_positional_opt_metadata_rejected() -> None:
+    def main(*sources: Annotated[Path, Opt(alias="-s")]) -> None:
+        del sources
+
+    with pytest.raises(YeeterError, match="Arg"):
+        yeeter.run(main, argv=["a"])
+
+
+def test_var_keyword_still_rejected() -> None:
+    def main(**opts: str) -> None:
+        del opts
+
+    with pytest.raises(YeeterError):
+        yeeter.run(main, argv=[])
 
 
 def test_specific_signature_from_spec() -> None:
@@ -218,3 +416,52 @@ def test_specific_signature_from_spec() -> None:
 
     yeeter.run(main, argv=["5", "--n", "0.2"])
     assert captured == {"thing": 5, "n": 0.2}
+
+
+def _clear_root_handlers() -> None:
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+
+
+def test_logging_setup_on_by_default_no_log_level_param() -> None:
+    def main(thing: int) -> None:
+        del thing
+
+    _clear_root_handlers()
+    yeeter.run(main, argv=["5"])
+    handlers = logging.getLogger().handlers
+    assert len(handlers) == 1
+    assert isinstance(handlers[0], RichHandler)
+    assert logging.getLogger().level == logging.INFO
+
+
+def test_logging_setup_honours_log_level_param() -> None:
+    def main(*, log_level: Literal["debug", "info", "warning", "error"] = "info") -> None:
+        del log_level
+
+    _clear_root_handlers()
+    yeeter.run(main, argv=["--log-level", "debug"])
+    assert logging.getLogger().level == logging.DEBUG
+
+
+def test_logging_setup_disabled_by_flag() -> None:
+    def main(thing: int) -> None:
+        del thing
+
+    _clear_root_handlers()
+    before = list(logging.getLogger().handlers)
+    yeeter.run(main, argv=["5"], should_setup_logging=False)
+    after = list(logging.getLogger().handlers)
+    assert before == after
+
+
+def test_logging_setup_is_idempotent() -> None:
+    def main(thing: int) -> None:
+        del thing
+
+    _clear_root_handlers()
+    yeeter.run(main, argv=["5"])
+    handler_count_after_first = len(logging.getLogger().handlers)
+    yeeter.run(main, argv=["6"])
+    assert len(logging.getLogger().handlers) == handler_count_after_first

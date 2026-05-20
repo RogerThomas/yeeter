@@ -4,45 +4,45 @@ tasks:
   install:
     desc: Install the virtual environment and install the pre-commit hooks
     cmds:
-      - echo "🚀 Creating virtual environment using uv"
+      - 'echo "🚀 Creating virtual environment using uv"'
       - uv sync
-      - uv run pre-commit install
+      - uv run prek install
 
   check:
     desc: Run code quality tools
     cmds:
-      - echo "🚀 Checking lock file consistency with 'pyproject.toml'"
+      - 'echo "🚀 Checking lock file consistency with ''pyproject.toml''"'
       - uv lock --locked
-      - echo "🚀 Linting code: Running pre-commit"
-      - uv run pre-commit run -a
-      - echo "🚀 Static type checking: Running pyright"
+      - 'echo "🚀 Linting code: Running pre-commit"'
+      - uv run prek run -a
+      - 'echo "🚀 Static type checking: Running pyright"'
       - uv run pyright
-      - echo "🚀 Checking for obsolete dependencies: Running deptry"
+      - 'echo "🚀 Checking for obsolete dependencies: Running deptry"'
       - uv run deptry .
 
   test:
     desc: Test the code with pytest
     cmds:
-      - echo "🚀 Testing code: Running pytest"
+      - 'echo "🚀 Testing code: Running pytest"'
       - uv run python -m pytest --cov --cov-config=pyproject.toml --cov-report=xml
 
   build:
     desc: Build wheel file
     deps: [clean-build]
     cmds:
-      - echo "🚀 Creating wheel file"
+      - 'echo "🚀 Creating wheel file"'
       - uvx --from build pyproject-build --installer uv
 
   clean-build:
     desc: Clean build artifacts
     cmds:
-      - echo "🚀 Removing build artifacts"
-      - uv run python -c "import shutil; import os; shutil.rmtree('dist') if os.path.exists('dist') else None"
+      - 'echo "🚀 Removing build artifacts"'
+      - 'uv run python -c "import shutil; import os; shutil.rmtree(''dist'') if os.path.exists(''dist'') else None"'
 
   publish:
     desc: Publish a release to PyPI
     cmds:
-      - echo "🚀 Publishing."
+      - 'echo "🚀 Publishing."'
       - uvx twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
 
   build-and-publish:

@@ -4,6 +4,8 @@ version = "0.0.1"
 description = "A tiny, typed, signature-driven CLI runner."
 authors = [{ name = "yeeter", email = "noreply@example.com" }]
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = ['python']
 requires-python = ">=3.14"
 classifiers = [
@@ -27,7 +29,6 @@ Documentation = "https://fpgmaas.github.io/yeeter/"
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
-    "pre-commit>=4.5.1",
     "tox-uv>=1.33.4",
     "deptry>=0.25.1",
     "pyright>=1.1.380",
@@ -36,6 +37,7 @@ dev = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.3",
+    "prek>=0.4.1",
 ]
 
 [build-system]
