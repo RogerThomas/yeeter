@@ -24,7 +24,7 @@ if __name__ == "__main__":
 ```
 
 ```
-python app.py 5 --n 0.2
+uv run app.py 5 --n 0.2
 ```
 
 ## Async
@@ -33,11 +33,14 @@ python app.py 5 --n 0.2
 async def main(name: str, *, loud: bool = False) -> None:
     ...
 
-yeeter.run(main)
+
+if __name__ == "__main__":
+    import yeeter
+    yeeter.run(main)
 ```
 
 ```
-python app.py Roger --loud
+uv run app.py world --loud
 ```
 
 If the function is a coroutine, its result is awaited via `asyncio.run`,
@@ -45,8 +48,6 @@ or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
 optional `uvloop` extra is installed:
 
 ```
-pip install "yeeter[uvloop]"
-# or
 uv add "yeeter[uvloop]"
 ```
 
@@ -64,7 +65,7 @@ def main(path: Path, *, output: Path | None = None) -> None:
 ```
 
 ```
-python app.py input.pdf --output out.txt
+uv run app.py input.pdf --output out.txt
 ```
 
 ## Literal choices
@@ -78,7 +79,7 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
 ```
 
 ```
-python app.py --format csv
+uv run app.py --format csv
 ```
 
 ## `Arg` and `Opt` metadata
@@ -101,7 +102,7 @@ def main(
 ```
 
 ```
-python app.py input.pdf -w 8
+uv run app.py input.pdf -w 8
 ```
 
 `Arg` accepts `help`, `metavar`, and `min`. `Opt` accepts `alias`, `aliases`,
@@ -122,7 +123,7 @@ def main(dst: Path, *sources: Path) -> None:
 ```
 
 ```
-python cp.py dst src1 src2 src3
+uv run cp.py dst src1 src2 src3
 ```
 
 By default `*args` accepts zero or more values (argparse `nargs="*"`). Use
@@ -201,6 +202,30 @@ yeeter.run(main, should_setup_logging=False)
 ```python
 yeeter.run(main, argv=["5", "--n", "0.2"])
 ```
+
+## yeeter vs. typer
+
+[Typer](https://github.com/fastapi/typer) is a mature, feature-rich CLI
+framework. yeeter is a much smaller library aimed at a narrower slice of
+the problem. Quick honest comparison so you can pick the right tool:
+
+| Topic                      | yeeter                                                                 | typer                                                              |
+| -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Style                      | Plain function signature, no decorators                                | Decorators (`@app.command()`) or `typer.run`                       |
+| Per-param metadata         | `Annotated[T, Arg(...)]` / `Annotated[T, Opt(...)]`                    | `Annotated[T, typer.Argument(...)]` / `typer.Option(...)`          |
+| Subcommands                | Not supported (single command per script)                              | First-class subcommands, command groups, nested apps               |
+| Async functions            | Native: `async def` is run via `asyncio.run` / `uvloop.run`            | Not built-in; wrap with `asyncio.run(...)` yourself                |
+| Shell completion           | Not built-in                                                           | Built-in (bash/zsh/fish/PowerShell)                                |
+| Help rendering             | Rich tables for args and options                                       | Rich-formatted help via `rich`                                     |
+| Type-checker friendliness  | Designed to be Pyright-strict clean end-to-end                         | Some patterns require `# type: ignore` under strict settings       |
+| Logging                    | Rich logging set up by default (opt-out)                               | Not opinionated about logging                                      |
+| Dependencies               | `rich`, `rich-argparse` (small footprint)                              | `click`, `rich`, `shellingham`, `typing-extensions`                |
+| Maturity / ecosystem       | New and small                                                          | Widely adopted, large ecosystem                                    |
+| Best for                   | Single-purpose scripts and tools where the function *is* the CLI       | Multi-command CLIs, distributed apps, anything needing completion  |
+
+If you need subcommands or shell completion, use typer. If you want one
+function = one CLI with minimal ceremony and strict typing, yeeter is
+designed for that.
 
 ## Development
 
