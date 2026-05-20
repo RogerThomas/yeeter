@@ -27,6 +27,10 @@ if __name__ == "__main__":
 uv run app.py 5 --n 0.2
 ```
 
+Note the bare `*` in the signature: parameters **before** it become
+positional CLI args, parameters **after** it become `--options`. That's
+the whole mapping — no decorators, no per-parameter annotations needed.
+
 ## Async
 
 ```python
