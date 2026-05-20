@@ -105,9 +105,72 @@ def main(
 uv run app.py input.pdf -w 8
 ```
 
-`Arg` accepts `help`, `metavar`, and `min`. `Opt` accepts `alias`, `aliases`,
-`help`, and `metavar`. Mixing them (e.g. `Opt` on a positional or `Arg` on a
+`Arg` accepts `help`, `metavar`, `min`, and the path validators below. `Opt`
+accepts `alias`, `aliases`, `help`, `metavar`, `envvar`, `hidden`, and the
+path validators below. Mixing them (e.g. `Opt` on a positional or `Arg` on a
 keyword-only parameter) raises a clear `YeeterError`.
+
+## Environment variable fallback (`Opt(envvar=...)`)
+
+`Opt(envvar="NAME")` falls back to an environment variable when the flag is
+not provided on the CLI. Precedence: **explicit CLI > env var > default**.
+
+```python
+from typing import Annotated
+from yeeter import Opt
+
+
+def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
+    ...
+```
+
+```
+WORKERS=8 uv run app.py        # workers == 8
+uv run app.py --workers 16     # workers == 16 (CLI wins)
+uv run app.py                  # workers == 4  (default)
+```
+
+Env-var values are type-coerced just like CLI values. `bool` accepts
+`1/0/true/false/yes/no` (case-insensitive). `list[T]` splits on `os.pathsep`
+(`:` on POSIX, `;` on Windows). `Literal` choices are validated.
+
+## Hidden options (`Opt(hidden=True)`)
+
+Hidden options still parse from the CLI but are absent from `--help` (both
+the usage line and the options table):
+
+```python
+from typing import Annotated
+from yeeter import Opt
+
+
+def main(*, debug: Annotated[bool, Opt(hidden=True)] = False) -> None:
+    ...
+```
+
+## Path validators
+
+`Arg` and `Opt` accept `exists`, `file_okay`, `dir_okay`, `readable`, and
+`writable` for `Path` parameters. They run at parse time and fail with a
+clear error:
+
+```python
+from pathlib import Path
+from typing import Annotated
+from yeeter import Arg
+
+
+def main(
+    src: Annotated[Path, Arg(exists=True, dir_okay=False, readable=True)],
+    dst: Annotated[Path, Arg(writable=True)],
+) -> None:
+    ...
+```
+
+Defaults mirror typer: `file_okay=True`, `dir_okay=True`, others off.
+Setting any path-check on a non-`Path` parameter raises `YeeterError` at
+parser-build time. Validators also apply to `list[Path]` and to
+`*paths: Path`.
 
 ## Variadic positional args (`*args`)
 
@@ -212,6 +275,7 @@ the problem. Quick honest comparison so you can pick the right tool:
 | Topic                      | yeeter                                                                 | typer                                                              |
 | -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Style                      | Plain function signature, no decorators                                | Decorators (`@app.command()`) or `typer.run`                       |
+| Arg vs. option mapping     | Uses Python's `*` separator: before `*` = positional args, after `*` = `--options` (no per-param annotation needed) | Decide per parameter via `typer.Argument(...)` / `typer.Option(...)` |
 | Per-param metadata         | `Annotated[T, Arg(...)]` / `Annotated[T, Opt(...)]`                    | `Annotated[T, typer.Argument(...)]` / `typer.Option(...)`          |
 | Subcommands                | Not supported (single command per script)                              | First-class subcommands, command groups, nested apps               |
 | Async functions            | Native: `async def` is run via `asyncio.run` / `uvloop.run`            | Not built-in; wrap with `asyncio.run(...)` yourself                |
