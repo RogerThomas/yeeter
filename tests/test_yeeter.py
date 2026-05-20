@@ -295,7 +295,7 @@ def test_type_alias_help_renders_inner_type() -> None:
     def main(*, workers: _Workers = 4) -> None:
         del workers
 
-    parser, _ = _build_parser(main, prog="app")
+    parser, _, _ = _build_parser(main, prog="app")
     buf = StringIO()
     console = Console(file=buf, force_terminal=False, width=200)
     parser.print_help(file=console.file)
@@ -465,3 +465,265 @@ def test_logging_setup_is_idempotent() -> None:
     handler_count_after_first = len(logging.getLogger().handlers)
     yeeter.run(main, argv=["6"])
     assert len(logging.getLogger().handlers) == handler_count_after_first
+
+
+def test_envvar_fallback_used_when_flag_omitted(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
+        captured["workers"] = workers
+
+    monkeypatch.setenv("WORKERS", "8")
+    yeeter.run(main, argv=[])
+    assert captured == {"workers": 8}
+
+
+def test_envvar_cli_overrides_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
+        captured["workers"] = workers
+
+    monkeypatch.setenv("WORKERS", "8")
+    yeeter.run(main, argv=["--workers", "16"])
+    assert captured == {"workers": 16}
+
+
+def test_envvar_default_used_when_env_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
+        captured["workers"] = workers
+
+    monkeypatch.delenv("WORKERS", raising=False)
+    yeeter.run(main, argv=[])
+    assert captured == {"workers": 4}
+
+
+def test_envvar_bool_accepts_truthy_strings(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, loud: Annotated[bool, Opt(envvar="LOUD")] = False) -> None:
+        captured["loud"] = loud
+
+    for value in ("1", "true", "yes", "TRUE"):
+        monkeypatch.setenv("LOUD", value)
+        yeeter.run(main, argv=[])
+        assert captured == {"loud": True}, value
+
+
+def test_envvar_bool_accepts_falsy_strings(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, loud: Annotated[bool, Opt(envvar="LOUD")] = True) -> None:
+        captured["loud"] = loud
+
+    for value in ("0", "false", "no", "FALSE"):
+        monkeypatch.setenv("LOUD", value)
+        yeeter.run(main, argv=[])
+        assert captured == {"loud": False}, value
+
+
+def test_envvar_literal_validates_choice(monkeypatch: pytest.MonkeyPatch) -> None:
+    def main(*, format: Annotated[Literal["json", "csv"], Opt(envvar="FMT")] = "json") -> None:
+        del format
+
+    monkeypatch.setenv("FMT", "xml")
+    with pytest.raises(SystemExit):
+        yeeter.run(main, argv=[])
+
+
+def test_envvar_list_splits_on_pathsep(monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    captured: dict[str, object] = {}
+
+    def main(*, tag: Annotated[list[str], Opt(envvar="TAGS")] = []) -> None:
+        captured["tag"] = tag
+
+    monkeypatch.setenv("TAGS", f"a{os.pathsep}b{os.pathsep}c")
+    yeeter.run(main, argv=[])
+    assert captured == {"tag": ["a", "b", "c"]}
+
+
+def test_envvar_required_without_default_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def main(*, workers: Annotated[int, Opt(envvar="WORKERS")]) -> None:
+        del workers
+
+    monkeypatch.delenv("WORKERS", raising=False)
+    with pytest.raises(YeeterError):
+        yeeter.run(main, argv=[])
+
+
+def test_envvar_required_satisfied_by_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, workers: Annotated[int, Opt(envvar="WORKERS")]) -> None:
+        captured["workers"] = workers
+
+    monkeypatch.setenv("WORKERS", "12")
+    yeeter.run(main, argv=[])
+    assert captured == {"workers": 12}
+
+
+def test_envvar_shown_in_help() -> None:
+    from io import StringIO
+
+    from rich.console import Console
+
+    from yeeter._runner import _build_parser  # pyright: ignore[reportPrivateUsage]
+
+    def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
+        del workers
+
+    parser, _, _ = _build_parser(main, prog="app")
+    buf = StringIO()
+    console = Console(file=buf, force_terminal=False, width=200)
+    parser.print_help(file=console.file)
+    output = buf.getvalue()
+    assert "WORKERS" in output
+
+
+def test_hidden_option_parses() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, debug: Annotated[bool, Opt(hidden=True)] = False) -> None:
+        captured["debug"] = debug
+
+    yeeter.run(main, argv=["--debug"])
+    assert captured == {"debug": True}
+
+
+def test_hidden_option_absent_from_help() -> None:
+    from io import StringIO
+
+    from rich.console import Console
+
+    from yeeter._runner import _build_parser  # pyright: ignore[reportPrivateUsage]
+
+    def main(*, debug: Annotated[bool, Opt(hidden=True)] = False, workers: int = 4) -> None:
+        del debug, workers
+
+    parser, _, _ = _build_parser(main, prog="app")
+    buf = StringIO()
+    console = Console(file=buf, force_terminal=False, width=200)
+    parser.print_help(file=console.file)
+    output = buf.getvalue()
+    assert "--debug" not in output
+    assert "--workers" in output
+
+
+def test_path_exists_rejects_missing(tmp_path: Path) -> None:
+    def main(path: Annotated[Path, Arg(exists=True)]) -> None:
+        del path
+
+    missing = tmp_path / "missing"
+    with pytest.raises(SystemExit):
+        yeeter.run(main, argv=[str(missing)])
+
+
+def test_path_exists_accepts_existing(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def main(path: Annotated[Path, Arg(exists=True)]) -> None:
+        captured["path"] = path
+
+    existing = tmp_path / "file"
+    existing.write_text("x")
+    yeeter.run(main, argv=[str(existing)])
+    assert captured == {"path": existing}
+
+
+def test_path_file_okay_false_rejects_file(tmp_path: Path) -> None:
+    def main(path: Annotated[Path, Arg(file_okay=False)]) -> None:
+        del path
+
+    file = tmp_path / "file"
+    file.write_text("x")
+    with pytest.raises(SystemExit):
+        yeeter.run(main, argv=[str(file)])
+
+
+def test_path_dir_okay_false_rejects_dir(tmp_path: Path) -> None:
+    def main(path: Annotated[Path, Arg(dir_okay=False)]) -> None:
+        del path
+
+    with pytest.raises(SystemExit):
+        yeeter.run(main, argv=[str(tmp_path)])
+
+
+def test_path_readable_rejects_unreadable(tmp_path: Path) -> None:
+    import os
+
+    def main(path: Annotated[Path, Arg(readable=True)]) -> None:
+        del path
+
+    file = tmp_path / "file"
+    file.write_text("x")
+    file.chmod(0o000)
+    try:
+        if os.access(file, os.R_OK):
+            pytest.skip("running as root; cannot test unreadable file")
+        with pytest.raises(SystemExit):
+            yeeter.run(main, argv=[str(file)])
+    finally:
+        file.chmod(0o644)
+
+
+def test_path_writable_rejects_unwritable(tmp_path: Path) -> None:
+    import os
+
+    def main(path: Annotated[Path, Arg(writable=True)]) -> None:
+        del path
+
+    file = tmp_path / "file"
+    file.write_text("x")
+    file.chmod(0o444)
+    try:
+        if os.access(file, os.W_OK):
+            pytest.skip("running as root; cannot test unwritable file")
+        with pytest.raises(SystemExit):
+            yeeter.run(main, argv=[str(file)])
+    finally:
+        file.chmod(0o644)
+
+
+def test_path_checks_on_non_path_raises() -> None:
+    def main(value: Annotated[int, Arg(exists=True)]) -> None:
+        del value
+
+    with pytest.raises(YeeterError, match="Path"):
+        yeeter.run(main, argv=["5"])
+
+
+def test_path_checks_on_list_path(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, paths: Annotated[list[Path], Opt(exists=True)] = []) -> None:
+        captured["paths"] = paths
+
+    file = tmp_path / "file"
+    file.write_text("x")
+    yeeter.run(main, argv=["--paths", str(file)])
+    assert captured == {"paths": [file]}
+
+
+def test_path_checks_on_var_positional(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*paths: Annotated[Path, Arg(exists=True)]) -> None:
+        captured["paths"] = paths
+
+    file = tmp_path / "file"
+    file.write_text("x")
+    yeeter.run(main, argv=[str(file)])
+    assert captured == {"paths": (file,)}
+
+
+def test_path_checks_on_var_positional_rejects_missing(tmp_path: Path) -> None:
+    def main(*paths: Annotated[Path, Arg(exists=True)]) -> None:
+        del paths
+
+    missing = tmp_path / "missing"
+    with pytest.raises(SystemExit):
+        yeeter.run(main, argv=[str(missing)])

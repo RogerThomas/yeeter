@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/yeeter-logo.png" alt="yeeter" width="420">
+</p>
+
 # yeeter
 
 A tiny, typed, signature-driven CLI runner.
@@ -36,7 +40,18 @@ yeeter.run(main)
 python app.py Roger --loud
 ```
 
-If the function is a coroutine, its result is awaited via `asyncio.run`.
+If the function is a coroutine, its result is awaited via `asyncio.run`,
+or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
+optional `uvloop` extra is installed:
+
+```
+pip install "yeeter[uvloop]"
+# or
+uv add "yeeter[uvloop]"
+```
+
+When `uvloop` is importable, yeeter uses it transparently — no code
+change required. Otherwise it falls back to the stdlib event loop.
 
 ## Path
 

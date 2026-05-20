@@ -21,6 +21,26 @@ from rich_argparse import RichHelpFormatter
 from ._metadata import Arg, Opt
 
 
+class _Unset:
+    """Sentinel marking that an argparse default was not specified on the CLI."""
+
+    _instance: _Unset | None = None
+
+    def __new__(cls) -> _Unset:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self) -> str:
+        return "<unset>"
+
+    def __bool__(self) -> bool:
+        return False
+
+
+_UNSET = _Unset()
+
+
 @dataclass(slots=True)
 class _PathChecks:
     exists: bool = False
@@ -390,6 +410,7 @@ def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamI
             help_text=help_text,
             metavar=metavar,
             path_checks=path_checks,
+            envvar_active=envvar is not None,
         )
         long_flag, aliases = _split_flags_for_display(param.name, flags, effective, default)
         info.long_flag = long_flag
@@ -447,18 +468,21 @@ def _add_option(
     default: Any,
     help_text: str | None,
     metavar: str | None,
+    path_checks: _PathChecks,
+    envvar_active: bool,
 ) -> None:
     if effective is bool:
-        if not has_default:
+        if not has_default and not envvar_active:
             raise YeeterError(
                 f"Boolean option {param_name!r} must have a default (use `= False` or `= True`).",
             )
-        if default is False:
+        bool_default: Any = _UNSET if envvar_active else default
+        if default is False or (not has_default and envvar_active):
             parser.add_argument(
                 *flags,
                 dest=param_name,
                 action="store_true",
-                default=False,
+                default=bool_default,
                 help=help_text,
             )
         elif default is True:
@@ -467,7 +491,7 @@ def _add_option(
                 no_flag,
                 dest=param_name,
                 action="store_false",
-                default=True,
+                default=bool_default,
                 help=help_text,
             )
         else:
@@ -476,6 +500,15 @@ def _add_option(
 
     rendered_help = _with_default_suffix(help_text, default) if has_default else help_text
 
+    argparse_default: Any
+    argparse_required: bool
+    if envvar_active:
+        argparse_default = _UNSET
+        argparse_required = False
+    else:
+        argparse_default = default if has_default else None
+        argparse_required = not has_default
+
     if is_literal:
         choices = get_args(effective)
         parser.add_argument(
@@ -483,8 +516,8 @@ def _add_option(
             dest=param_name,
             type=_literal_caster(choices, param_name),
             choices=list(choices),
-            default=default if has_default else None,
-            required=not has_default,
+            default=argparse_default,
+            required=argparse_required,
             help=rendered_help,
             metavar=metavar,
         )
@@ -492,14 +525,17 @@ def _add_option(
 
     if is_list:
         (inner_t,) = get_args(effective)
-        list_default = list(default) if has_default and default is not None else ([] if has_default else None)
+        if envvar_active:
+            list_default = _UNSET
+        else:
+            list_default = list(default) if has_default and default is not None else ([] if has_default else None)
         parser.add_argument(
             *flags,
             dest=param_name,
-            type=_type_caster(inner_t, param_name),
+            type=_type_caster(inner_t, param_name, path_checks),
             action="append",
             default=list_default,
-            required=not has_default,
+            required=argparse_required,
             help=rendered_help,
             metavar=metavar,
         )
@@ -508,9 +544,9 @@ def _add_option(
     parser.add_argument(
         *flags,
         dest=param_name,
-        type=_type_caster(effective, param_name),
-        default=default if has_default else None,
-        required=not has_default,
+        type=_type_caster(effective, param_name, path_checks),
+        default=argparse_default,
+        required=argparse_required,
         help=rendered_help,
         metavar=metavar,
     )
@@ -527,6 +563,7 @@ def _add_positional(
     default: Any,
     help_text: str | None,
     metavar: str | None,
+    path_checks: _PathChecks,
 ) -> None:
     dest = param_name
     display_metavar = metavar or _snake_to_kebab(param_name).upper()
@@ -559,7 +596,7 @@ def _add_positional(
     if is_list:
         (inner_t,) = get_args(effective)
         kwargs = {
-            "type": _type_caster(inner_t, param_name),
+            "type": _type_caster(inner_t, param_name, path_checks),
             "nargs": "*" if has_default else "+",
             "help": rendered_help,
             "metavar": display_metavar,
@@ -570,7 +607,7 @@ def _add_positional(
         return
 
     kwargs = {
-        "type": _type_caster(effective, param_name),
+        "type": _type_caster(effective, param_name, path_checks),
         "help": rendered_help,
         "metavar": display_metavar,
     }
@@ -581,7 +618,10 @@ def _add_positional(
     parser.add_argument(dest, **kwargs)
 
 
-def _build_parser(func: Callable[..., Any], prog: str | None = None) -> tuple[argparse.ArgumentParser, Signature]:
+def _build_parser(
+    func: Callable[..., Any],
+    prog: str | None = None,
+) -> tuple[argparse.ArgumentParser, Signature, list[_ParamInfo]]:
     sig = inspect.signature(func)
     doc = inspect.getdoc(func)
     resolved_prog = prog or _default_prog()
@@ -602,7 +642,7 @@ def _build_parser(func: Callable[..., Any], prog: str | None = None) -> tuple[ar
             continue
         infos.append(_add_parameter(parser, param))
     _install_rich_help(parser, resolved_prog, doc, infos)
-    return parser, sig
+    return parser, sig, infos
 
 
 def _install_rich_help(
@@ -630,6 +670,8 @@ def _build_usage(prog: str, infos: list[_ParamInfo]) -> str:
     parts: list[str] = [prog, "[-h]"]
     for info in infos:
         if info.is_positional:
+            continue
+        if info.hidden:
             continue
         flag = info.long_flag or f"--{_snake_to_kebab(info.name)}"
         if info.type_label == "flag":
@@ -701,6 +743,8 @@ def _arguments_table(infos: list[_ParamInfo]) -> Table:
 
 
 def _options_table(infos: list[_ParamInfo]) -> Table:
+    visible = [i for i in infos if not i.hidden]
+    show_envvar = any(i.envvar for i in visible)
     table = Table(title="Options", title_style="bold cyan", title_justify="left", show_lines=False)
     table.add_column("Name", style="bold green", no_wrap=True)
     table.add_column("Alias(es)", style="cyan", no_wrap=True)
@@ -708,28 +752,36 @@ def _options_table(infos: list[_ParamInfo]) -> Table:
     table.add_column("Required", no_wrap=True)
     table.add_column("Default", style="yellow", no_wrap=True)
     table.add_column("Choices", style="blue")
+    if show_envvar:
+        table.add_column("Env var", style="cyan", no_wrap=True)
     table.add_column("Description", style="white")
 
-    table.add_row(
+    help_row: list[str | Text] = [
         "--help",
         "-h",
         "flag",
         _required_text(False),
         "-",
         "-",
-        "show this help message and exit",
-    )
+    ]
+    if show_envvar:
+        help_row.append("-")
+    help_row.append("show this help message and exit")
+    table.add_row(*help_row)
 
-    for info in infos:
-        table.add_row(
+    for info in visible:
+        row: list[str | Text] = [
             info.long_flag or f"--{_snake_to_kebab(info.name)}",
             ", ".join(info.aliases) if info.aliases else "-",
             info.type_label,
             _required_text(info.required),
             info.default_label or "-",
             ", ".join(info.choices) if info.choices else "-",
-            info.help_text or "-",
-        )
+        ]
+        if show_envvar:
+            row.append(info.envvar or "-")
+        row.append(info.help_text or "-")
+        table.add_row(*row)
     return table
 
 
@@ -751,6 +803,42 @@ def _build_call_args(sig: Signature, namespace: argparse.Namespace) -> tuple[lis
         else:
             kwargs[name] = value
     return args, kwargs
+
+
+def _coerce_envvar_value(raw: str, info: _ParamInfo) -> Any:
+    effective = info.effective_type
+    if info.is_list:
+        (inner_t,) = get_args(effective)
+        parts = raw.split(os.pathsep) if raw else []
+        return [_coerce_value(p, inner_t, info.name) for p in parts]
+    if info.is_literal:
+        return _literal_caster(get_args(effective), info.name)(raw)
+    return _coerce_value(raw, effective, info.name)
+
+
+def _resolve_envvars(
+    parser: argparse.ArgumentParser,
+    namespace: argparse.Namespace,
+    infos: list[_ParamInfo],
+) -> None:
+    for info in infos:
+        if info.envvar is None:
+            continue
+        current = getattr(namespace, info.name, _UNSET)
+        if not isinstance(current, _Unset):
+            continue
+        raw = os.environ.get(info.envvar)
+        if raw is not None:
+            try:
+                setattr(namespace, info.name, _coerce_envvar_value(raw, info))
+            except argparse.ArgumentTypeError as exc:
+                parser.error(f"environment variable {info.envvar}: {exc}")
+        elif info.has_default:
+            setattr(namespace, info.name, info.default)
+        else:
+            raise YeeterError(
+                f"option {info.name!r} requires either a CLI value or environment variable {info.envvar!r}",
+            )
 
 
 def _setup_logging(namespace: argparse.Namespace) -> None:
@@ -779,7 +867,9 @@ def run[T](
     - positional parameters become positional CLI args
     - keyword-only parameters (after ``*``) become options
 
-    If ``func`` is async, the coroutine is executed via ``asyncio.run``.
+    If ``func`` is async, the coroutine is executed via ``uvloop.run``
+    when the optional ``uvloop`` extra is installed, otherwise via
+    ``asyncio.run``.
 
     Pass ``argv`` to bypass ``sys.argv`` (useful for tests).
 
@@ -791,13 +881,22 @@ def run[T](
     ``should_setup_logging=False`` to take full control of logging
     yourself.
     """
-    parser, sig = _build_parser(func, prog=prog)
+    parser, sig, infos = _build_parser(func, prog=prog)
     raw_argv = list(sys.argv[1:]) if argv is None else list(argv)
     namespace = parser.parse_args(raw_argv)
+    _resolve_envvars(parser, namespace, infos)
     if should_setup_logging:
         _setup_logging(namespace)
     call_args, call_kwargs = _build_call_args(sig, namespace)
     result = func(*call_args, **call_kwargs)
     if inspect.iscoroutine(result):
-        return typing.cast(T, asyncio.run(result))
+        return typing.cast(T, _run_coroutine(result))
     return typing.cast(T, result)
+
+
+def _run_coroutine(coro: Any) -> Any:
+    try:
+        import uvloop  # pyright: ignore[reportMissingImports]
+    except ImportError:
+        return asyncio.run(coro)
+    return uvloop.run(coro)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
