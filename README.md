@@ -301,8 +301,10 @@ yeeter.run(main, argv=["5", "--n", "0.2"])
 ## yeeter vs. typer
 
 [Typer](https://github.com/fastapi/typer) is a mature, feature-rich CLI
-framework. yeeter is a much smaller library aimed at a narrower slice of
-the problem. Quick honest comparison so you can pick the right tool:
+framework and a direct inspiration for yeeter — the `Annotated[..., Arg/Opt]`
+metadata pattern, path validators, and envvar fallback all take cues from
+typer. yeeter is a much smaller library aimed at a narrower slice of the
+problem. Quick honest comparison so you can pick the right tool:
 
 | Topic                      | yeeter                                                                 | typer                                                              |
 | -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ |
