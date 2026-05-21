@@ -1,0 +1,21 @@
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 2rem;
+}
+
+.md-typeset h1 {
+  margin-bottom: 0.8rem;
+}
+
+.md-typeset img {
+  border-radius: 1rem;
+}
+
+.md-typeset pre > code {
+  border-radius: 0.9rem;
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 0.9rem;
+}
