@@ -4,6 +4,10 @@
 
 # yeeter
 
+[![Release](https://img.shields.io/github/v/release/RogerThomas/yeeter)](https://github.com/RogerThomas/yeeter/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/RogerThomas/yeeter/main.yml?branch=main)](https://github.com/RogerThomas/yeeter/actions/workflows/main.yml?query=branch%3Amain)
+[![License](https://img.shields.io/github/license/RogerThomas/yeeter)](https://github.com/RogerThomas/yeeter/blob/main/LICENSE)
+
 A tiny, typed, signature-driven CLI runner.
 
 > No decorators.
@@ -77,6 +81,42 @@ uv run yeet app.py greet world --loud
 
 You can still use the explicit `yeeter.run(main)` form when you prefer —
 the `yeet` script is just sugar on top of it.
+
+---
+
+## `#!yeet` and `#!uv run yeet`
+
+For tiny scripts, you can make the file itself executable and let `yeet`
+discover `main` directly from the shebang. The short forms are:
+
+```python
+#!yeet
+```
+
+or:
+
+```python
+#!uv run yeet
+```
+
+For example:
+
+```python
+#!uv run yeet
+
+def main(name: str, *, loud: bool = False) -> None:
+    print(name.upper() if loud else name)
+```
+
+Then run it directly:
+
+```
+chmod +x greet.py
+./greet.py world --loud
+```
+
+If you need a different entry function, keep the shebang simple and call
+`uv run yeet file.py other_func ...` explicitly instead.
 
 ---
 
@@ -355,6 +395,7 @@ problem. Quick honest comparison so you can pick the right tool:
 | -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Style                      | Plain function signature, no decorators                                | Decorators (`@app.command()`) or `typer.run`                       |
 | Zero-boilerplate runner    | `yeet main.py [func] [args...]` script — no `if __name__ == "__main__"` / `yeeter.run(...)` block needed | Always need a `typer.run(...)` call or a decorated `@app.command()` entry point |
+| Executable shebang         | `#!yeet` or `#!uv run yeet` can make the script itself executable without extra wrapper code | No equivalent single-line signature-driven runner; still need a `typer.run(...)` or app entry point |
 | Arg vs. option mapping     | Uses Python's `*` separator: before `*` = positional args, after `*` = `--options` (no per-param annotation needed) | Decide per parameter via `typer.Argument(...)` / `typer.Option(...)` |
 | Per-param metadata         | `Annotated[T, Arg(...)]` / `Annotated[T, Opt(...)]`                    | `Annotated[T, typer.Argument(...)]` / `typer.Option(...)`          |
 | Variadic positional args   | Native `*args: T` maps to a trailing variadic positional arg           | Use `list[T]` with `typer.Argument(...)`                           |
