@@ -119,11 +119,6 @@ If you need a different entry function, keep the shebang simple and call
 ```python
 async def main(name: str, *, loud: bool = False) -> None:
     ...
-
-
-if __name__ == "__main__":
-    import yeeter
-    yeeter.run(main)
 ```
 
 ```
@@ -348,10 +343,6 @@ logger = logging.getLogger("app")
 
 def main(thing: int) -> None:
     logger.info("thing = %s", thing)
-
-
-if __name__ == "__main__":
-    yeeter.run(main)
 ```
 
 If your function has a `log_level` parameter (e.g.
