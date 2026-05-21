@@ -1,12 +1,17 @@
+"""CLI entry point for running callables from Python files."""
+
 import importlib.util
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from ._runner import run
 
+if TYPE_CHECKING:
+    import types
 
-def _load_module(path: Path) -> Any:
+
+def _load_module(path: Path) -> types.ModuleType:
     spec = importlib.util.spec_from_file_location(path.stem, path)
     if spec is None or spec.loader is None:
         sys.stderr.write(f"yeet: cannot load {path}\n")
@@ -17,6 +22,7 @@ def _load_module(path: Path) -> Any:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Run the ``yeet`` command-line interface."""
     raw = list(sys.argv[1:] if argv is None else argv)
     if not raw or raw[0] in {"-h", "--help"}:
         sys.stdout.write(

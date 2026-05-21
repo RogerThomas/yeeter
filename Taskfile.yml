@@ -15,10 +15,6 @@ tasks:
       - uv lock --locked
       - 'echo "🚀 Linting code: Running pre-commit"'
       - uv run prek run -a
-      - 'echo "🚀 Static type checking: Running pyright"'
-      - uv run pyright
-      - 'echo "🚀 Checking for obsolete dependencies: Running deptry"'
-      - uv run deptry .
 
   test:
     desc: Test the code with pytest

@@ -1,1 +1,1 @@
-::: yeeter.foo
+::: yeeter
