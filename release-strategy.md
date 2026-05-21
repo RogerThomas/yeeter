@@ -24,7 +24,6 @@
 ## Operational requirements
 
 - Repository Actions settings must allow GitHub Actions to create tags and releases.
-- `task release-version` still exists for manually computing the next CalVer when needed.
 - Normal PRs that touch `pyproject.toml` or `uv.lock` do not become releases.
 
 ## Expected release path

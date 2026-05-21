@@ -89,3 +89,5 @@ else
     --title "${pr_title}" \
     --body "${pr_body}"
 fi
+
+git switch "${base_branch}"
