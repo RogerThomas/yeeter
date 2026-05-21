@@ -52,6 +52,11 @@ tasks:
     cmds:
       - uv run python scripts/release_version.py {{.CLI_ARGS}}
 
+  release:
+    desc: Trigger the GitHub Actions release workflow
+    cmds:
+      - gh workflow run on-release-main.yml --ref main {{.CLI_ARGS}}
+
   docs-test:
     desc: Test if documentation can be built without warnings or errors
     cmds:

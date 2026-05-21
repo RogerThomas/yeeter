@@ -16,7 +16,8 @@ PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21`; multiple releases on the same day use `.postN`, for example
 `2026.5.21.post1`. To bump a release version manually, run
 `uv version <version>`, or use `task release-version` to compute today's
-next release automatically.
+next release automatically. Use `task release` to dispatch the GitHub
+Actions release workflow.
 
 ---
 
