@@ -97,6 +97,36 @@ the whole mapping — no decorators, no per-parameter annotations needed.
 
 ---
 
+## Async Support
+
+`yeetr` supports async functions natively. Just make your `main` an `async def` and `yeet`
+will run it with `asyncio.run` or `uvloop.run` if [uvloop](https://github.com/MagicStack/uvloop)
+is installed.
+
+### Async
+
+```python
+async def main(name: str, *, loud: bool = False) -> None:
+    ...
+```
+
+```bash
+yeet file.py world --loud
+```
+
+If the function is a coroutine, its result is awaited via `asyncio.run`,
+or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
+optional `uvloop` extra is installed:
+
+```bash
+uv add "yeetr[uvloop]"
+```
+
+When `uvloop` is importable, yeetr uses it transparently — no code
+change required. Otherwise it falls back to the stdlib event loop.
+
+---
+
 ## Script Execution
 
 ### Hashbang
@@ -136,35 +166,6 @@ If you need a different entry function, keep the shebang simple and call
 ---
 
 
-## Async Support
-
-`yeetr` supports async functions natively. Just make your `main` an `async def` and `yeet`
-will run it with `asyncio.run` or `uvloop.run` if [uvloop](https://github.com/MagicStack/uvloop)
-is installed.
-
-### Async
-
-```python
-async def main(name: str, *, loud: bool = False) -> None:
-    ...
-```
-
-```bash
-yeet file.py world --loud
-```
-
-If the function is a coroutine, its result is awaited via `asyncio.run`,
-or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
-optional `uvloop` extra is installed:
-
-```bash
-uv add "yeetr[uvloop]"
-```
-
-When `uvloop` is importable, yeetr uses it transparently — no code
-change required. Otherwise it falls back to the stdlib event loop.
-
----
 
 ## Supported Parameter Types
 
