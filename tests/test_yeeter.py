@@ -727,3 +727,75 @@ def test_path_checks_on_var_positional_rejects_missing(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
     with pytest.raises(SystemExit):
         yeeter.run(main, argv=[str(missing)])
+
+
+def _write_demo(tmp_path: Path) -> Path:
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def main(thing: int, *, n: float = 0.1) -> None:\n"
+        "    print(f'main thing={thing} n={n}')\n"
+        "\n"
+        "def greet(name: str, *, loud: bool = False) -> None:\n"
+        "    msg = f'hello {name}'\n"
+        "    print(msg.upper() if loud else msg)\n"
+    )
+    return file
+
+
+def test_yeet_cli_defaults_to_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    file = _write_demo(tmp_path)
+    yeet_main([str(file), "5", "--n", "0.2"])
+    out = capsys.readouterr().out
+    assert "main thing=5 n=0.2" in out
+
+
+def test_yeet_cli_explicit_func(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    file = _write_demo(tmp_path)
+    yeet_main([str(file), "greet", "world", "--loud"])
+    out = capsys.readouterr().out
+    assert "HELLO WORLD" in out
+
+
+def test_yeet_cli_missing_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(tmp_path / "nope.py")])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "file not found" in err
+
+
+def test_yeet_cli_no_args_prints_usage(capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([])
+    assert exc.value.code == 2
+    out = capsys.readouterr().out
+    assert "yeet FILE" in out
+
+
+def test_yeet_cli_help(capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    with pytest.raises(SystemExit) as exc:
+        yeet_main(["--help"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "yeet FILE" in out
+
+
+def test_yeet_cli_forwards_help_to_target(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    file = _write_demo(tmp_path)
+    with pytest.raises(SystemExit):
+        yeet_main([str(file), "--help"])
+    out = capsys.readouterr().out
+    assert "THING" in out
+    assert "--n" in out

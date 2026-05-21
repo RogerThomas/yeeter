@@ -24,6 +24,9 @@ dependencies = [
 [project.optional-dependencies]
 uvloop = ["uvloop>=0.21.0"]
 
+[project.scripts]
+yeet = "yeeter._cli:main"
+
 [project.urls]
 Homepage = "https://fpgmaas.github.io/yeeter/"
 Repository = "https://github.com/fpgmaas/yeeter"
@@ -67,8 +70,8 @@ fix = true
 
 [tool.ruff.lint]
 select = [
-    # flake8-2020
-    "YTT",
+
+    "YTT",# flake8-2020
     # flake8-bandit
     "S",
     # flake8-bugbear
