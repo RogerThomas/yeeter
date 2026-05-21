@@ -7,7 +7,7 @@
 1. Run `task release`.
 2. A bash script creates `release/{TAG}`, bumps `pyproject.toml`, runs `task deps-lock`, commits the changes, pushes the branch, and opens the PR.
 3. Merge the release PR into `main`.
-4. GitHub Actions tags the merge commit, creates the GitHub Release, publishes PyPI, and deploys docs in the same workflow run.
+4. GitHub Actions tags the merge commit, creates the GitHub Release, and deploys docs in the same workflow run.
 
 ## Why this exists
 
@@ -16,7 +16,7 @@
 ## Workflow split
 
 - `scripts/release.sh` creates the release branch and PR.
-- `release.yml` handles tagging the merged release PR, creating the GitHub Release, publishing PyPI, and deploying docs.
+- `release.yml` handles tagging the merged release PR, creating the GitHub Release, and deploying docs.
 - `main.yml` still runs on normal PRs.
 
 ## Operational requirements
@@ -28,4 +28,4 @@
 
 - `task release`
 - wait for the release PR to merge
-- wait for GitHub Actions to tag the merge commit, create the release, publish PyPI, and deploy docs
+- wait for GitHub Actions to tag the merge commit, create the release, and deploy docs

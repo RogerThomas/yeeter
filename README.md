@@ -417,7 +417,7 @@ PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21`; multiple releases on the same day use `.postN`, for example
 `2026.5.21.post1`. Run `task release` to create the `release/{TAG}` PR,
 then merge it. GitHub Actions tags the merge commit, creates the GitHub
-Release, publishes PyPI, and deploys docs in the same workflow run. To
+Release, and deploys docs in the same workflow run. To
 bump a release version manually, run `uv version <version>`.
 ---
 

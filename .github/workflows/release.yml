@@ -79,16 +79,6 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Build package
-        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
-        run: uv build
-
-      - name: Publish package
-        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
-        run: uv publish
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-
       - name: Build documentation
         if: ${{ steps.release-check.outputs.release_exists == 'false' }}
         run: uv run mkdocs build --clean
