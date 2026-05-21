@@ -1,0 +1,59 @@
+name: release-publish
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - pyproject.toml
+      - uv.lock
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Read release version
+        id: read-version
+        run: |
+          release_version="$(python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+          print(pyproject["project"]["version"])
+          PY
+          )"
+          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $release_version"
+
+      - name: Check whether the release already exists
+        id: release-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.read-version.outputs.release_version }}" >/dev/null 2>&1; then
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release tag
+        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
+        run: |
+          git tag -a "${{ steps.read-version.outputs.release_version }}" -m "Release ${{ steps.read-version.outputs.release_version }}"
+          git push origin "${{ steps.read-version.outputs.release_version }}"
+
+      - name: Create GitHub release
+        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.read-version.outputs.release_version }}" \
+            --generate-notes \
+            --verify-tag
