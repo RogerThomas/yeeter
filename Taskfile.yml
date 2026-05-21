@@ -20,7 +20,7 @@ tasks:
     desc: Test the code with pytest
     cmds:
       - 'echo "🚀 Testing code: Running pytest"'
-      - uv run python -m pytest --cov --cov-config=pyproject.toml --cov-report=xml
+      - uv run pytest --cov --cov-config=pyproject.toml --cov-report=xml
 
   build:
     desc: Build wheel file
@@ -50,12 +50,12 @@ tasks:
   release-version:
     desc: Bump the project version to today's CalVer, using .postN for same-day follow-ups
     cmds:
-      - uv run python scripts/release_version.py {{.CLI_ARGS}}
+      - uv run ./scripts/release_version.py {{.CLI_ARGS}}
 
   docs-sync:
     desc: Sync the docs home page and branding assets from the README
     cmds:
-      - uv run python scripts/sync_docs.py
+      - uv run ./scripts/sync_docs.py
 
   release:
     desc: Trigger the GitHub Actions release workflow
