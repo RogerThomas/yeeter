@@ -90,7 +90,7 @@ if git diff --cached --quiet; then
   exit 1
 fi
 
-git commit -m "chore: release ${version}"
+git commit -m "release ${version}"
 git push --set-upstream origin "${branch}"
 
 pr_title="chore: release ${version}"
