@@ -109,7 +109,6 @@ ignore = ["TC006"]
     "ANN001",
     "S101",   # use of assert detected
 ]
-"scripts/release_version.py" = ["S606"]
 "yeeter/_runner.py" = ["ANN401", "FBT001", "FBT003", "TRY003"]
 
 [tool.ruff.lint.mccabe]

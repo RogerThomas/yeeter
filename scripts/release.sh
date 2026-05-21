@@ -26,7 +26,29 @@ import datetime as dt
 import tomllib
 from pathlib import Path
 
-from scripts.release_version import next_release_version
+import re
+
+
+def next_release_version(current_version: str, release_date: dt.date) -> str:
+    match = re.fullmatch(
+        r"(?P<year>\d{4})\.(?P<month>\d{1,2})\.(?P<day>\d{1,2})(?:\.post(?P<post>\d+))?",
+        current_version,
+    )
+    if match is None:
+        return f"{release_date.year}.{release_date.month}.{release_date.day}"
+
+    current_date = dt.date(
+        year=int(match["year"]),
+        month=int(match["month"]),
+        day=int(match["day"]),
+    )
+    if current_date != release_date:
+        return f"{release_date.year}.{release_date.month}.{release_date.day}"
+
+    current_post = match["post"]
+    if current_post is None:
+        return f"{release_date.year}.{release_date.month}.{release_date.day}.post1"
+    return f"{release_date.year}.{release_date.month}.{release_date.day}.post{int(current_post) + 1}"
 
 pyproject = tomllib.loads(Path("pyproject.toml").read_text())
 current_version = pyproject["project"]["version"]
@@ -40,11 +62,7 @@ branch="release/${version}"
 git fetch origin "${base_branch}"
 git switch -C "${branch}" "origin/${base_branch}"
 
-if [[ $# -eq 1 ]]; then
-  uv run ./scripts/release_version.py --version "${version}"
-else
-  uv run ./scripts/release_version.py
-fi
+uv version "${version}"
 
 task deps-lock
 
