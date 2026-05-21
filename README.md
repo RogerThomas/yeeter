@@ -425,8 +425,9 @@ PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21.post1`.
 
 Run `task release` to create the `release/{TAG}` PR, then merge it.
-GitHub Actions tags the merge commit, creates the GitHub Release, and a
-separate workflow deploys docs.
+Then create and push the matching release tag. GitHub Actions validates
+the tag, creates the GitHub Release, and a separate workflow deploys
+docs.
 
 To bump a release version manually, run `uv version <version>`.
 ---
