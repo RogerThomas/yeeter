@@ -56,11 +56,6 @@ tasks:
     cmds:
       - uv run ./scripts/release_version.py {{.CLI_ARGS}}
 
-  docs-sync:
-    desc: Sync the docs home page and branding assets from the README
-    cmds:
-      - uv run ./scripts/sync_docs.py
-
   release:
     desc: Trigger the GitHub Actions release workflow
     cmds:
@@ -69,11 +64,9 @@ tasks:
   docs-test:
     desc: Test if documentation can be built without warnings or errors
     cmds:
-      - task: docs-sync
       - uv run mkdocs build -s
 
   docs:
     desc: Build and serve the documentation
     cmds:
-      - task: docs-sync
       - uv run mkdocs serve

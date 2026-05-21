@@ -74,8 +74,5 @@ jobs:
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
-      - name: Sync docs home page
-        run: uv run python scripts/sync_docs.py
-
       - name: Check if documentation can be built
         run: uv run mkdocs build -s

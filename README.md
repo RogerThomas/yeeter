@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/yeeter.png" alt="yeeter" width="420">
+  <img src="assets/yeeter.png" alt="yeeter" width="500">
 </p>
 
 # yeeter
@@ -27,27 +27,7 @@ Actions release workflow.
 
 ## Minimal example
 
-```python
-def main(thing: int, *, n: float = 0.1) -> None:
-    print(thing, n)
-
-
-if __name__ == "__main__":
-    import yeeter
-    yeeter.run(main)
-```
-
-```
-uv run app.py 5 --n 0.2
-```
-
-Note the bare `*` in the signature: parameters **before** it become
-positional CLI args, parameters **after** it become `--options`. That's
-the whole mapping — no decorators, no per-parameter annotations needed.
-
----
-
-## Zero-boilerplate: the `yeet` script
+### Zero-boilerplate: the `yeet` script
 
 Installing yeeter also installs a `yeet` script that finds and runs a
 function in any Python file. No `if __name__ == "__main__"` block, no
@@ -82,6 +62,26 @@ uv run yeet app.py greet world --loud
 You can still use the explicit `yeeter.run(main)` form when you prefer —
 the `yeet` script is just sugar on top of it.
 
+### Explicit `yeeter.run(main)`
+
+```python
+def main(thing: int, *, n: float = 0.1) -> None:
+    print(thing, n)
+
+
+if __name__ == "__main__":
+    import yeeter
+    yeeter.run(main)
+```
+
+```
+yeet app.py 5 --n 0.2
+```
+
+Note the bare `*` in the signature: parameters **before** it become
+positional CLI args, parameters **after** it become `--options`. That's
+the whole mapping — no decorators, no per-parameter annotations needed.
+
 ---
 
 ## `#!yeet` and `#!uv run yeet`
@@ -102,7 +102,7 @@ or:
 For example:
 
 ```python
-#!uv run yeet
+#!yeet
 
 def main(name: str, *, loud: bool = False) -> None:
     print(name.upper() if loud else name)
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 ```
 
 ```
-uv run app.py world --loud
+yeet app.py world --loud
 ```
 
 If the function is a coroutine, its result is awaited via `asyncio.run`,
@@ -160,7 +160,7 @@ def main(path: Path, *, output: Path | None = None) -> None:
 ```
 
 ```
-uv run app.py input.pdf --output out.txt
+yeet app.py input.pdf --output out.txt
 ```
 
 ---
@@ -176,7 +176,7 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
 ```
 
 ```
-uv run app.py --format csv
+yeet app.py --format csv
 ```
 
 ---
@@ -201,7 +201,7 @@ def main(
 ```
 
 ```
-uv run app.py input.pdf -w 8
+yeet app.py input.pdf -w 8
 ```
 
 `Arg` accepts `help`, `metavar`, `min`, and the path validators below. `Opt`
@@ -226,9 +226,9 @@ def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
 ```
 
 ```
-WORKERS=8 uv run app.py        # workers == 8
-uv run app.py --workers 16     # workers == 16 (CLI wins)
-uv run app.py                  # workers == 4  (default)
+WORKERS=8 yeet app.py        # workers == 8
+yeet app.py --workers 16     # workers == 16 (CLI wins)
+yeet app.py                  # workers == 4  (default)
 ```
 
 Env-var values are type-coerced just like CLI values. `bool` accepts
@@ -293,7 +293,7 @@ def main(dst: Path, *sources: Path) -> None:
 ```
 
 ```
-uv run cp.py dst src1 src2 src3
+yeet cp.py dst src1 src2 src3
 ```
 
 By default `*args` accepts zero or more values (argparse `nargs="*"`). Use
