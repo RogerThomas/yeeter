@@ -15,14 +15,6 @@ A tiny, typed, signature-driven CLI runner.
 > No ceremony.
 > Just yeet the function.
 
-yeeter uses CalVer based on the release date. Versions are published in
-PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
-`2026.5.21`; multiple releases on the same day use `.postN`, for example
-`2026.5.21.post1`. To bump a release version manually, run
-`uv version <version>`, or use `task release-version` to compute today's
-next release automatically. Use `task release` to dispatch the GitHub
-Actions release workflow.
-
 ---
 
 ## Minimal example
@@ -30,8 +22,10 @@ Actions release workflow.
 ### Zero-boilerplate: the `yeet` script
 
 Installing yeeter also installs a `yeet` script that finds and runs a
-function in any Python file. No `if __name__ == "__main__"` block, no
-`yeeter.run(...)` call — just the function:
+function in any Python file.
+
+No `if __name__ == "__main__"` block, no `yeeter.run(...)` call — just
+the function:
 
 ```python
 # app.py
@@ -40,7 +34,7 @@ def main(thing: int, *, n: float = 0.1) -> None:
 ```
 
 ```
-uv run yeet app.py 5 --n 0.2
+yeet file.py 5 --n 0.2
 ```
 
 The default function name is `main`. Pass a different one to pick another
@@ -53,10 +47,10 @@ def greet(name: str, *, loud: bool = False) -> None: ...
 ```
 
 ```
-uv run yeet app.py greet world --loud
+yeet file.py greet world --loud
 ```
 
-`yeet app.py --help` prints the **target function's** help, not yeet's.
+`yeet file.py --help` prints the **target function's** help, not yeet's.
 `yeet` itself only has `yeet FILE [FUNC] [args...]`.
 
 You can still use the explicit `yeeter.run(main)` form when you prefer —
@@ -75,7 +69,7 @@ if __name__ == "__main__":
 ```
 
 ```
-yeet app.py 5 --n 0.2
+yeet file.py 5 --n 0.2
 ```
 
 Note the bare `*` in the signature: parameters **before** it become
@@ -84,7 +78,7 @@ the whole mapping — no decorators, no per-parameter annotations needed.
 
 ---
 
-## `#!yeet` and `#!uv run yeet`
+## Hashbang
 
 For tiny scripts, you can make the file itself executable and let `yeet`
 discover `main` directly from the shebang. The short forms are:
@@ -133,7 +127,7 @@ if __name__ == "__main__":
 ```
 
 ```
-yeet app.py world --loud
+yeet file.py world --loud
 ```
 
 If the function is a coroutine, its result is awaited via `asyncio.run`,
@@ -160,7 +154,7 @@ def main(path: Path, *, output: Path | None = None) -> None:
 ```
 
 ```
-yeet app.py input.pdf --output out.txt
+yeet file.py input.pdf --output out.txt
 ```
 
 ---
@@ -176,7 +170,7 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
 ```
 
 ```
-yeet app.py --format csv
+yeet file.py --format csv
 ```
 
 ---
@@ -201,7 +195,7 @@ def main(
 ```
 
 ```
-yeet app.py input.pdf -w 8
+yeet file.py input.pdf -w 8
 ```
 
 `Arg` accepts `help`, `metavar`, `min`, and the path validators below. `Opt`
@@ -226,9 +220,9 @@ def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
 ```
 
 ```
-WORKERS=8 yeet app.py        # workers == 8
-yeet app.py --workers 16     # workers == 16 (CLI wins)
-yeet app.py                  # workers == 4  (default)
+WORKERS=8 yeet file.py        # workers == 8
+yeet file.py --workers 16     # workers == 16 (CLI wins)
+yeet file.py                  # workers == 4  (default)
 ```
 
 Env-var values are type-coerced just like CLI values. `bool` accepts
@@ -293,7 +287,7 @@ def main(dst: Path, *sources: Path) -> None:
 ```
 
 ```
-yeet cp.py dst src1 src2 src3
+yeet file.py dst src1 src2 src3
 ```
 
 By default `*args` accepts zero or more values (argparse `nargs="*"`). Use
@@ -413,6 +407,18 @@ problem. Quick honest comparison so you can pick the right tool:
 If you need subcommands or shell completion, use typer. If you want one
 function = one CLI with minimal ceremony and strict typing, yeeter is
 designed for that.
+
+---
+
+## Versioning and release flow
+
+yeeter uses CalVer based on the release date. Versions are published in
+PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
+`2026.5.21`; multiple releases on the same day use `.postN`, for example
+`2026.5.21.post1`. To bump a release version manually, run
+`uv version <version>`, or use `task release-version` to compute today's
+next release automatically. Use `task release` to dispatch the GitHub
+Actions release workflow.
 
 ---
 

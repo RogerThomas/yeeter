@@ -218,6 +218,7 @@ __marimo__/
 _compare/
 script.py
 t.py
+tmp.py
 
 # Tickets are local-only
 tickets/
