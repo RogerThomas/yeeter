@@ -165,8 +165,6 @@ If you need a different entry function, keep the shebang simple and call
 
 ---
 
-
-
 ## Supported Parameter Types
 
 ### Path
