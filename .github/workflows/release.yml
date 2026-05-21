@@ -2,8 +2,6 @@ name: release
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 on:
   pull_request:
@@ -15,9 +13,6 @@ jobs:
   tag-release:
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/') }}
     runs-on: ubuntu-24.04
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out
         uses: actions/checkout@v6
@@ -68,28 +63,8 @@ jobs:
       - name: Create GitHub release
         if: ${{ steps.release-check.outputs.release_exists == 'false' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
         run: |
           gh release create "${{ steps.read-version.outputs.release_version }}" \
             --generate-notes \
             --verify-tag
-
-      - name: Set up the environment
-        uses: ./.github/actions/setup-python-env
-        with:
-          python-version: "3.14"
-
-      - name: Build documentation
-        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
-        run: uv run mkdocs build --clean
-
-      - name: Upload artifact
-        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
-        id: deployment
-        uses: actions/deploy-pages@v5
