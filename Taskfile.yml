@@ -51,11 +51,6 @@ tasks:
       - task: build
       - task: publish
 
-  release-version:
-    desc: Bump the project version to today's CalVer, using .postN for same-day follow-ups
-    cmds:
-      - uv run ./scripts/release_version.py {{.CLI_ARGS}}
-
   release:
     desc: Create the release PR
     cmds:
