@@ -4,19 +4,20 @@ permissions:
   contents: write
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
-    paths:
-      - pyproject.toml
-      - uv.lock
 
 jobs:
   publish-release:
     runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/') }}
     steps:
       - name: Check out
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Read release version
         id: read-version
