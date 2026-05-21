@@ -18,8 +18,8 @@ plugins:
           paths: ["yeeter"]
 theme:
   name: material
-  logo: assets/yeeter-mark.svg
-  favicon: assets/yeeter-mark.svg
+  logo: assets/yeeter.png
+  favicon: assets/yeeter.png
   features:
     - navigation.tabs
     - content.code.copy

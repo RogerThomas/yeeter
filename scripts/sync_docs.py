@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
-
-
-def _copy_asset(name: str, source_dir: Path, target_dir: Path) -> None:
-    source_path = source_dir / name
-    target_path = target_dir / name
-    shutil.copyfile(source_path, target_path)
 
 
 def main() -> int:
@@ -23,9 +16,8 @@ def main() -> int:
     docs_index_path = docs_dir / "index.md"
     docs_index_path.write_text(readme_path.read_text())
 
-    assets_dir = repo_root / "assets"
-    _copy_asset("yeeter-logo.svg", assets_dir, docs_assets_dir)
-    _copy_asset("yeeter-mark.svg", assets_dir, docs_assets_dir)
+    docs_logo_path = docs_assets_dir / "yeeter.png"
+    docs_logo_path.write_bytes((repo_root / "assets" / "yeeter.png").read_bytes())
     return 0
 
 
