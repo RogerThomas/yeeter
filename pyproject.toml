@@ -1,5 +1,5 @@
 [project]
-name = "yeeter"
+name = "yeetr"
 version = "2026.5.21.post14"
 description = "A tiny, typed, signature-driven CLI runner."
 authors = [{ name = "yeeter", email = "noreply@example.com" }]
@@ -24,9 +24,9 @@ uvloop = ["uvloop>=0.21.0"]
 yeet = "yeeter._cli:main"
 
 [project.urls]
-Homepage = "https://rogerthomas.github.io/yeeter/"
-Repository = "https://github.com/RogerThomas/yeeter"
-Documentation = "https://rogerthomas.github.io/yeeter/"
+Homepage = "https://rogerthomas.github.io/yeetr/"
+Repository = "https://github.com/RogerThomas/yeetr"
+Documentation = "https://rogerthomas.github.io/yeetr/"
 
 [dependency-groups]
 dev = [

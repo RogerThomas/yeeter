@@ -4,11 +4,15 @@
 
 # yeeter
 
-[![Release](https://img.shields.io/github/v/release/RogerThomas/yeeter)](https://github.com/RogerThomas/yeeter/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/RogerThomas/yeeter/main.yml?branch=main)](https://github.com/RogerThomas/yeeter/actions/workflows/main.yml?query=branch%3Amain)
-[![License](https://img.shields.io/github/license/RogerThomas/yeeter)](https://github.com/RogerThomas/yeeter/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/RogerThomas/yeetr)](https://github.com/RogerThomas/yeetr/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/RogerThomas/yeetr/main.yml?branch=main)](https://github.com/RogerThomas/yeetr/actions/workflows/main.yml?query=branch%3Amain)
+[![License](https://img.shields.io/github/license/RogerThomas/yeetr)](https://github.com/RogerThomas/yeetr/blob/main/LICENSE)
 
 A tiny, typed, signature-driven CLI runner.
+
+PyPI distribution: `yeetr`
+Python import package: `yeeter`
+CLI command: `yeet`
 
 > No decorators.
 > No command classes.
@@ -434,6 +438,12 @@ the version on `main`, runs `task deps-lock`, commits, pushes `main`,
 creates the matching tag, and pushes the tag.
 
 To bump a release version manually, run `uv version <version>`.
+
+Install from PyPI with:
+
+```bash
+pip install yeetr
+```
 ---
 
 ## Development
