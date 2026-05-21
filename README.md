@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://rogerthomas.github.io/yeetr/">
-    <img src="https://rogerthomas.github.io/yeetr/assets/yeetr.png" alt="yeetr" width="500">
+    <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr.png" alt="yeetr" width="500">
   </a>
 </p>
 <p align="center">
@@ -168,7 +168,7 @@ def main(
 produces help like this:
 
 <p align="center">
-  <img src="https://rogerthomas.github.io/yeetr/assets/yeetr-help.png" alt="yeetr help output" width="900">
+  <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr-help.png" alt="yeetr help output" width="900">
 </p>
 
 ---
@@ -509,15 +509,5 @@ To bump a release version manually, run `uv version <version>`.
 Install from PyPI with:
 
 ```bash
-pip install yeetr
-```
----
-
-### Development
-
-```
-uv sync
-uv run ruff check
-uv run pyright
-uv run pytest
+uv add yeetr
 ```
