@@ -52,7 +52,7 @@ def main(thing: int, *, n: float = 0.1) -> None:
     print(thing, n)
 ```
 
-```
+```bash
 yeet file.py 5 --n 0.2
 ```
 
@@ -65,7 +65,7 @@ def main(...) -> None: ...
 def greet(name: str, *, loud: bool = False) -> None: ...
 ```
 
-```
+```bash
 yeet file.py greet world --loud
 ```
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     yeetr.run(main)
 ```
 
-```
+```bash
 yeet file.py 5 --n 0.2
 ```
 
@@ -125,7 +125,7 @@ def main(name: str, *, loud: bool = False) -> None:
 
 Then run it directly:
 
-```
+```bash
 chmod +x greet.py
 ./greet.py world --loud
 ```
@@ -135,43 +135,6 @@ If you need a different entry function, keep the shebang simple and call
 
 ---
 
-## Help And Error Messages
-
-On `--help` or a CLI parse error, yeetr renders the target function's
-arguments and options in the same readable Rich table layout.
-
-For example, this script:
-
-```python
-#!yeet
-from logging import getLogger
-from pathlib import Path
-from typing import Annotated, Literal
-
-from yeetr import Arg
-
-logger = getLogger("Tmp")
-
-type PDFPathArg = Annotated[Path, Arg(help="Path to the PDF file")]
-
-
-def main(
-    pdf_path: PDFPathArg = Path("./"),
-    *,
-    tol: float = 0.002,
-    mode: Literal["auto", "text", "vision"] = "auto",
-) -> None:
-    """Main entrypoint to process the PDF"""
-    logger.info(f"Processing PDF at: {pdf_path}, tol: {tol}, mode: {mode}")
-```
-
-produces help like this:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr-help.png" alt="yeetr help output" width="900">
-</p>
-
----
 
 ## Async Support
 
@@ -186,7 +149,7 @@ async def main(name: str, *, loud: bool = False) -> None:
     ...
 ```
 
-```
+```bash
 yeet file.py world --loud
 ```
 
@@ -194,7 +157,7 @@ If the function is a coroutine, its result is awaited via `asyncio.run`,
 or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
 optional `uvloop` extra is installed:
 
-```
+```bash
 uv add "yeetr[uvloop]"
 ```
 
@@ -215,7 +178,7 @@ def main(path: Path, *, output: Path | None = None) -> None:
     ...
 ```
 
-```
+```bash
 yeet file.py input.pdf --output out.txt
 ```
 
@@ -231,7 +194,7 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
     ...
 ```
 
-```
+```bash
 yeet file.py --format csv
 ```
 
@@ -258,7 +221,7 @@ def main(
     ...
 ```
 
-```
+```bash
 yeet file.py input.pdf -w 8
 ```
 
@@ -299,7 +262,7 @@ def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
     ...
 ```
 
-```
+```bash
 WORKERS=8 yeet file.py        # workers == 8
 yeet file.py --workers 16     # workers == 16 (CLI wins)
 yeet file.py                  # workers == 4  (default)
@@ -366,7 +329,7 @@ def main(dst: Path, *sources: Path) -> None:
     ...
 ```
 
-```
+```bash
 yeet file.py dst src1 src2 src3
 ```
 
@@ -452,6 +415,44 @@ yeetr.run(main, should_setup_logging=False)
 ```python
 yeetr.run(main, argv=["5", "--n", "0.2"])
 ```
+
+---
+
+## Help And Error Messages
+
+On `--help` or a CLI parse error, yeetr renders the target function's
+arguments and options in the same readable Rich table layout.
+
+For example, this script:
+
+```python
+#!yeet
+from logging import getLogger
+from pathlib import Path
+from typing import Annotated, Literal
+
+from yeetr import Arg
+
+logger = getLogger("Tmp")
+
+type PDFPathArg = Annotated[Path, Arg(help="Path to the PDF file")]
+
+
+def main(
+    pdf_path: PDFPathArg = Path("./"),
+    *,
+    tol: float = 0.002,
+    mode: Literal["auto", "text", "vision"] = "auto",
+) -> None:
+    """Main entrypoint to process the PDF"""
+    logger.info(f"Processing PDF at: {pdf_path}, tol: {tol}, mode: {mode}")
+```
+
+produces help like this:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr-help.png" alt="yeetr help output" width="900">
+</p>
 
 ---
 
