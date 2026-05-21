@@ -93,7 +93,7 @@ fi
 git commit -m "release ${version}"
 git push --set-upstream origin "${branch}"
 
-pr_title="chore: release ${version}"
+pr_title="release ${version}"
 pr_body="Automated release PR for ${version}."
 
 existing_pr="$(gh pr list --head "${branch}" --state open --json number --jq '.[0].number // empty')"
