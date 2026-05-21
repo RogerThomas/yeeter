@@ -38,7 +38,7 @@ CLI command: `yeet`
 
 ## Getting Started
 
-### Zero-boilerplate: the `yeet` script
+### Zero-boilerplate: just yeet it
 
 Installing `yeetr` also installs a `yeet` script that finds and runs a
 function in any Python file.
