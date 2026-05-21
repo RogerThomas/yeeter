@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/yeetr.png" alt="yeeter" width="500">
+  <img src="https://rogerthomas.github.io/yeetr/assets/yeetr.png" alt="yeeter" width="500">
 </p>
 
 # yeeter
