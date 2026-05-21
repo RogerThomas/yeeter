@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://rogerthomas.github.io/yeetr/">
-    <img src="https://rogerthomas.github.io/yeetr/assets/yeetr.png" alt="yeetr" width="500">
+    <img src="https://rogerthomas.github.io/yeetr/assets/yeetr-rounded.svg" alt="yeetr" width="500">
   </a>
 </p>
 <p align="center">
