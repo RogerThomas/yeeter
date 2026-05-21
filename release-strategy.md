@@ -1,6 +1,6 @@
 # Release Strategy
 
-`yeeter` uses a PR-based release flow. A small local script creates the release branch and PR, GitHub Actions tags the merged commit and creates the GitHub Release, and a separate release-published workflow publishes PyPI and deploys docs.
+`yeeter` uses a PR-based release flow. A small local script creates the release branch and PR, and GitHub Actions tags the merged commit, creates the release, and deploys docs.
 
 ## Overview
 
@@ -8,7 +8,7 @@
 2. A bash script creates `release/{TAG}`, bumps `pyproject.toml`, runs `task deps-lock`, commits the changes, pushes the branch, and opens the PR.
 3. Merge the release PR into `main`.
 4. GitHub Actions tags the merge commit and creates the GitHub Release.
-5. The published release triggers a separate workflow that publishes PyPI and deploys docs.
+5. The published release triggers a separate workflow that deploys docs.
 
 ## Why this exists
 
@@ -18,7 +18,7 @@
 
 - `scripts/release.sh` creates the release branch and PR.
 - `release.yml` handles tagging the merged release PR and creating the GitHub Release.
-- `release-publish.yml` handles publishing PyPI and deploying docs after the GitHub Release is published.
+- `release-publish.yml` handles docs deployment after the GitHub Release is published.
 - `main.yml` still runs on normal PRs.
 
 ## Operational requirements
@@ -32,4 +32,4 @@
 - `task release`
 - wait for the release PR to merge
 - wait for GitHub Actions to tag the merge commit and create the release
-- wait for the published-release workflow to publish PyPI and deploy docs
+- wait for the published-release workflow to deploy docs

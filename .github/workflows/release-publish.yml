@@ -26,14 +26,6 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Build package
-        run: uv build
-
-      - name: Publish package
-        run: uv publish
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-
       - name: Build documentation
         run: uv run mkdocs build --clean
 
