@@ -34,6 +34,28 @@ jobs:
         with:
           path: site
 
+  publish-pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: "3.14"
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: uvx twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
