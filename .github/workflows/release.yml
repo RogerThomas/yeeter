@@ -21,6 +21,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
+      - name: Validate release branch name
+        run: |
+          branch_name="${{ github.event.pull_request.head.ref }}"
+          if [[ ! "${branch_name}" =~ ^release/[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}(\.post[0-9]+)?$ ]]; then
+            echo "Invalid release branch name: ${branch_name}" >&2
+            exit 1
+          fi
+
       - name: Read release version
         id: read-version
         run: |
