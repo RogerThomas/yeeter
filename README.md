@@ -11,6 +11,13 @@ A tiny, typed, signature-driven CLI runner.
 > No ceremony.
 > Just yeet the function.
 
+yeeter uses CalVer based on the release date. Versions are published in
+PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
+`2026.5.21`; multiple releases on the same day use `.postN`, for example
+`2026.5.21.post1`. To bump a release version manually, run
+`uv version <version>`, or use `task release-version` to compute today's
+next release automatically.
+
 ---
 
 ## Minimal example
@@ -346,6 +353,7 @@ problem. Quick honest comparison so you can pick the right tool:
 | Topic                      | yeeter                                                                 | typer                                                              |
 | -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Style                      | Plain function signature, no decorators                                | Decorators (`@app.command()`) or `typer.run`                       |
+| Zero-boilerplate runner    | `yeet main.py [func] [args...]` script — no `if __name__ == "__main__"` / `yeeter.run(...)` block needed | Always need a `typer.run(...)` call or a decorated `@app.command()` entry point |
 | Arg vs. option mapping     | Uses Python's `*` separator: before `*` = positional args, after `*` = `--options` (no per-param annotation needed) | Decide per parameter via `typer.Argument(...)` / `typer.Option(...)` |
 | Per-param metadata         | `Annotated[T, Arg(...)]` / `Annotated[T, Opt(...)]`                    | `Annotated[T, typer.Argument(...)]` / `typer.Option(...)`          |
 | Variadic positional args   | Native `*args: T` maps to a trailing variadic positional arg           | Use `list[T]` with `typer.Argument(...)`                           |
