@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/yeeter-logo.png" alt="yeeter" width="420">
+  <img src="assets/yeeter-logo.svg" alt="yeeter" width="420">
 </p>
 
 # yeeter
