@@ -1,6 +1,6 @@
 [project]
 name = "yeetr"
-version = "2026.5.21.post15"
+version = "2026.5.21.post16"
 description = "A tiny, typed, signature-driven CLI runner."
 authors = [{ name = "yeeter", email = "noreply@example.com" }]
 readme = "README.md"
