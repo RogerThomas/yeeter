@@ -24,9 +24,9 @@ uvloop = ["uvloop>=0.21.0"]
 yeet = "yeeter._cli:main"
 
 [project.urls]
-Homepage = "https://fpgmaas.github.io/yeeter/"
-Repository = "https://github.com/fpgmaas/yeeter"
-Documentation = "https://fpgmaas.github.io/yeeter/"
+Homepage = "https://rogerthomas.github.io/yeeter/"
+Repository = "https://github.com/RogerThomas/yeeter"
+Documentation = "https://rogerthomas.github.io/yeeter/"
 
 [dependency-groups]
 dev = [
