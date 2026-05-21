@@ -57,6 +57,10 @@ jobs:
         run: |
           git switch -c "release/${{ steps.read-version.outputs.release_version }}"
 
+      - name: Fetch existing release branch
+        run: |
+          git fetch origin "release/${{ steps.read-version.outputs.release_version }}":"refs/remotes/origin/release/${{ steps.read-version.outputs.release_version }}" || true
+
       - name: Configure git identity
         run: |
           git config user.name "github-actions[bot]"
