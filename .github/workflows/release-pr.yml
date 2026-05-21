@@ -82,8 +82,12 @@ jobs:
       - name: Create or update pull request
         if: ${{ steps.commit.outputs.did_commit == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Missing RELEASE_BOT_TOKEN repository secret."
+            exit 1
+          fi
           branch="release/${{ steps.read-version.outputs.release_version }}"
           title="chore: release ${{ steps.read-version.outputs.release_version }}"
           body="Automated release version bump for ${{ steps.read-version.outputs.release_version }}."

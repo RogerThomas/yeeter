@@ -30,6 +30,7 @@ The PR-bot flow solves that by making the version bump a normal pull request:
 ## Operational requirements
 
 - Repository Actions settings must allow GitHub Actions to create pull requests.
+- The release PR workflow uses a repository secret named `RELEASE_BOT_TOKEN` to open the PR, because PRs created with `GITHUB_TOKEN` do not trigger the normal PR checks.
 - `task release-version` still exists for manually computing the next CalVer when needed.
 - Normal PRs that touch `pyproject.toml` or `uv.lock` do not become releases unless they came from a `release/*` branch.
 
