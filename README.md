@@ -15,14 +15,6 @@ A tiny, typed, signature-driven CLI runner.
 > No ceremony.
 > Just yeet the function.
 
-yeeter uses CalVer based on the release date. Versions are published in
-PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
-`2026.5.21`; multiple releases on the same day use `.postN`, for example
-`2026.5.21.post1`. To bump a release version manually, run
-`uv version <version>`, or use `task release-version` to compute today's
-next release automatically. Use `task release` to dispatch the GitHub
-Actions release workflow.
-
 ---
 
 ## Minimal example
@@ -30,8 +22,10 @@ Actions release workflow.
 ### Zero-boilerplate: the `yeet` script
 
 Installing yeeter also installs a `yeet` script that finds and runs a
-function in any Python file. No `if __name__ == "__main__"` block, no
-`yeeter.run(...)` call — just the function:
+function in any Python file.
+
+No `if __name__ == "__main__"` block, no `yeeter.run(...)` call — just
+the function:
 
 ```python
 # app.py
@@ -413,6 +407,18 @@ problem. Quick honest comparison so you can pick the right tool:
 If you need subcommands or shell completion, use typer. If you want one
 function = one CLI with minimal ceremony and strict typing, yeeter is
 designed for that.
+
+---
+
+## Versioning and release flow
+
+yeeter uses CalVer based on the release date. Versions are published in
+PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
+`2026.5.21`; multiple releases on the same day use `.postN`, for example
+`2026.5.21.post1`. To bump a release version manually, run
+`uv version <version>`, or use `task release-version` to compute today's
+next release automatically. Use `task release` to dispatch the GitHub
+Actions release workflow.
 
 ---
 
