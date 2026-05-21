@@ -1,8 +1,25 @@
-# yeeter
+# Overview
+
+<p align="center">
+  <img src="assets/yeeter.png" alt="yeeter" width="260">
+</p>
 
 `yeeter` is a tiny, typed, signature-driven CLI runner.
 
-It turns a Python function into a command line interface:
+> No decorators.
+> No command classes.
+> No ceremony.
+> Just yeet the function.
+
+## What it does
+
+It turns a Python function signature into a CLI:
+
+- positional parameters become positional CLI args
+- keyword-only parameters become `--options`
+- annotations drive type conversion and help text
+
+## Minimal example
 
 ```python
 from yeeter import run
@@ -15,9 +32,7 @@ def main(name: str, *, loud: bool = False) -> None:
 run(main)
 ```
 
-Positional parameters become positional CLI args. Keyword-only parameters become `--options`.
-
 ## Start Here
 
-- Read the main project README for usage and examples.
+- Read the main project README for the full usage guide and examples.
 - Check the API reference for `run`, `Param`, and `YeeterError`.
