@@ -56,6 +56,11 @@ tasks:
     cmds:
       - bash ./scripts/release.sh {{.CLI_ARGS}}
 
+  release-direct:
+    desc: Create and push a release directly from main
+    cmds:
+      - bash ./scripts/release_direct.sh {{.CLI_ARGS}}
+
   docs-test:
     desc: Test if documentation can be built without warnings or errors
     cmds:

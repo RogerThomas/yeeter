@@ -11,6 +11,14 @@
 5. GitHub Actions validates the tag, checks that it matches `project.version`, and creates the GitHub Release.
 5. The published release triggers a separate workflow that deploys docs.
 
+## Direct release path
+
+If you need to bypass the PR flow:
+
+1. Run `task release-direct`.
+2. The script switches to `main`, fast-forwards it from `origin/main`, bumps `pyproject.toml`, runs `task deps-lock`, commits the release, pushes `main`, creates the matching tag, and pushes the tag.
+3. GitHub Actions validates the tag, creates the GitHub Release, and the published release deploys docs.
+
 ## Why this exists
 
 `main` can stay branch-protected. The release branch is the review gate, and the pushed tag is the explicit release trigger.
@@ -18,6 +26,7 @@
 ## Workflow split
 
 - `scripts/release.sh` creates the release branch and PR.
+- `scripts/release_direct.sh` releases directly from `main`.
 - `release.yml` handles pushed CalVer tags and creates the GitHub Release.
 - `release-publish.yml` handles docs deployment after the GitHub Release is published.
 - `main.yml` still runs on normal PRs.

@@ -429,6 +429,10 @@ Then create and push the matching release tag. GitHub Actions validates
 the tag, creates the GitHub Release, and a separate workflow deploys
 docs.
 
+If you need to bypass the PR flow, run `task release-direct`. That bumps
+the version on `main`, runs `task deps-lock`, commits, pushes `main`,
+creates the matching tag, and pushes the tag.
+
 To bump a release version manually, run `uv version <version>`.
 ---
 
