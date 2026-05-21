@@ -47,6 +47,11 @@ tasks:
       - task: build
       - task: publish
 
+  release-version:
+    desc: Bump the project version to today's CalVer, using .postN for same-day follow-ups
+    cmds:
+      - uv run python scripts/release_version.py {{.CLI_ARGS}}
+
   docs-test:
     desc: Test if documentation can be built without warnings or errors
     cmds:

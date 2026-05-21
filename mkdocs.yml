@@ -1,11 +1,11 @@
 site_name: yeeter
-repo_url: https://github.com/fpgmaas/yeeter
-site_url: https://fpgmaas.github.io/yeeter
+repo_url: https://github.com/RogerThomas/yeeter
+site_url: https://rogerthomas.github.io/yeeter/
 site_description: This is a template repository for Python projects that use uv for their dependency management.
 site_author: Florian Maas
 edit_uri: edit/main/docs/
-repo_name: fpgmaas/yeeter
-copyright: Maintained by <a href="https://fpgmaas.com">fpgmaas</a>.
+repo_name: RogerThomas/yeeter
+copyright: Maintained by Roger Thomas.
 
 nav:
   - Home: index.md
@@ -41,7 +41,7 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/fpgmaas/yeeter
+      link: https://github.com/RogerThomas/yeeter
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/yeeter
 

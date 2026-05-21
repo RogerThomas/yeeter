@@ -3,6 +3,7 @@
 # pylint: disable=import-outside-toplevel,missing-function-docstring,redefined-builtin
 
 import asyncio
+import datetime as dt
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
@@ -11,6 +12,7 @@ import pytest
 from rich.logging import RichHandler
 
 import yeeter
+from scripts.release_version import next_release_version
 from yeeter import Arg, Opt, YeeterError
 
 if TYPE_CHECKING:
@@ -238,6 +240,26 @@ def test_returns_function_result() -> None:
         return thing * 2
 
     assert yeeter.run(main, argv=["5"]) == 10
+
+
+def test_release_version_uses_base_calver_for_new_day() -> None:
+    assert next_release_version("2026.5.20", dt.date(2026, 5, 21)) == "2026.5.21"
+
+
+def test_release_version_uses_post1_for_second_release_same_day() -> None:
+    assert next_release_version("2026.5.21", dt.date(2026, 5, 21)) == "2026.5.21.post1"
+
+
+def test_release_version_increments_existing_post_release() -> None:
+    assert next_release_version("2026.5.21.post1", dt.date(2026, 5, 21)) == "2026.5.21.post2"
+
+
+def test_release_version_resets_for_non_calver_current_version() -> None:
+    assert next_release_version("0.0.1", dt.date(2026, 5, 21)) == "2026.5.21"
+
+
+def test_release_version_ignores_older_post_release_from_prior_day() -> None:
+    assert next_release_version("2026.5.20.post3", dt.date(2026, 5, 21)) == "2026.5.21"
 
 
 type _Workers = Annotated[int, Opt(alias="-w", help="Worker count")]

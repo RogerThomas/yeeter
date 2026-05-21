@@ -1,12 +1,15 @@
 name: release-main
 
+permissions:
+  contents: write
+
 on:
   release:
     types: [published]
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to stamp into pyproject.toml (blank = today's CalVer YYYY.MM.DD)"
+        description: "Version to stamp into pyproject.toml (blank = auto-increment today's CalVer)"
         default: ""
         required: false
       publish:
@@ -18,35 +21,66 @@ jobs:
 
   set-version:
     runs-on: ubuntu-24.04
+    outputs:
+      release-version: ${{ steps.read-version.outputs.release_version }}
+      persist-ref: ${{ steps.persist-ref.outputs.persist_ref }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
-      - name: Export tag
-        id: vars
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: "3.14"
+
+      - name: Install task
+        uses: arduino/setup-task@v2
+
+      - name: Choose ref to persist version files
+        id: persist-ref
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
-            tag="${GITHUB_REF#refs/*/}"
-          elif [ -n "${{ inputs.version }}" ]; then
-            tag="${{ inputs.version }}"
+            persist_ref="${{ github.event.repository.default_branch }}"
           else
-            tag="$(date -u +%Y.%m.%d)"
+            persist_ref="${{ github.ref_name }}"
           fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "Using version: $tag"
+          echo "persist_ref=$persist_ref" >> "$GITHUB_OUTPUT"
+          echo "Persisting version files to: $persist_ref"
 
       - name: Update project version
         run: |
-          sed -i "s/^version = \".*\"/version = \"$RELEASE_VERSION\"/" pyproject.toml
+          if [ "${{ github.event_name }}" = "release" ]; then
+            task release-version -- --version "${{ github.event.release.tag_name }}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            task release-version -- --version "${{ inputs.version }}"
+          else
+            task release-version
+          fi
           echo "--- pyproject.toml head ---"
           head -n 10 pyproject.toml
-        env:
-          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
 
-      - name: Upload updated pyproject.toml
+      - name: Read resolved version
+        id: read-version
+        run: |
+          release_version="$(python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+          print(pyproject["project"]["version"])
+          PY
+          )"
+          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $release_version"
+
+      - name: Upload updated release files
         uses: actions/upload-artifact@v4
         with:
-          name: pyproject-toml
-          path: pyproject.toml
+          name: release-files
+          path: |
+            pyproject.toml
+            uv.lock
 
   publish:
     runs-on: ubuntu-latest
@@ -58,10 +92,11 @@ jobs:
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
-      - name: Download updated pyproject.toml
+      - name: Download updated release files
         uses: actions/download-artifact@v4
         with:
-          name: pyproject-toml
+          name: release-files
+          path: .
 
       - name: Build package
         run: uv build
@@ -81,8 +116,45 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
 
+  persist-version:
+    runs-on: ubuntu-latest
+    needs: [set-version, publish]
+    if: ${{ github.event_name == 'release' || inputs.publish }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.set-version.outputs.persist-ref }}
+
+      - name: Download updated release files
+        uses: actions/download-artifact@v4
+        with:
+          name: release-files
+          path: .
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit updated version files
+        run: |
+          git add pyproject.toml uv.lock
+          if git diff --cached --quiet; then
+            echo "No version file changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: release ${{ needs.set-version.outputs.release-version }}"
+          git push origin HEAD:${{ needs.set-version.outputs.persist-ref }}
+
+      - name: Create release tag
+        if: ${{ github.event_name != 'release' }}
+        run: |
+          git tag -a "${{ needs.set-version.outputs.release-version }}" -m "Release ${{ needs.set-version.outputs.release-version }}"
+          git push origin "${{ needs.set-version.outputs.release-version }}"
+
   deploy-docs:
-    needs: publish
+    needs: [publish, persist-version]
     if: ${{ github.event_name == 'release' }}
     permissions:
       contents: read

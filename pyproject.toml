@@ -1,6 +1,6 @@
 [project]
 name = "yeeter"
-version = "0.0.1"
+version = "2026.5.21"
 description = "A tiny, typed, signature-driven CLI runner."
 authors = [{ name = "yeeter", email = "noreply@example.com" }]
 readme = "README.md"
@@ -24,9 +24,9 @@ uvloop = ["uvloop>=0.21.0"]
 yeet = "yeeter._cli:main"
 
 [project.urls]
-Homepage = "https://fpgmaas.github.io/yeeter/"
-Repository = "https://github.com/fpgmaas/yeeter"
-Documentation = "https://fpgmaas.github.io/yeeter/"
+Homepage = "https://rogerthomas.github.io/yeeter/"
+Repository = "https://github.com/RogerThomas/yeeter"
+Documentation = "https://rogerthomas.github.io/yeeter/"
 
 [dependency-groups]
 dev = [
@@ -107,14 +107,10 @@ ignore = ["TC006"]
 "tests/*" = [
     "A002",
     "ANN001",
-    "S101", # use of assert detected
+    "S101",   # use of assert detected
 ]
-"yeeter/_runner.py" = [
-    "ANN401",
-    "FBT001",
-    "FBT003",
-    "TRY003",
-]
+"scripts/release_version.py" = ["S606"]
+"yeeter/_runner.py" = ["ANN401", "FBT001", "FBT003", "TRY003"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15
