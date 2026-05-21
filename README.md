@@ -40,7 +40,7 @@ CLI command: `yeet`
 
 ### Zero-boilerplate: the `yeet` script
 
-Installing yeetr also installs a `yeet` script that finds and runs a
+Installing `yeetr` also installs a `yeet` script that finds and runs a
 function in any Python file.
 
 No `if __name__ == "__main__"` block, no `yeetr.run(...)` call — just
@@ -132,6 +132,44 @@ chmod +x greet.py
 
 If you need a different entry function, keep the shebang simple and call
 `uv run yeet file.py other_func ...` explicitly instead.
+
+---
+
+## Help And Error Messages
+
+On `--help` or a CLI parse error, yeetr renders the target function's
+arguments and options in the same readable Rich table layout.
+
+For example, this script:
+
+```python
+#!yeet
+from logging import getLogger
+from pathlib import Path
+from typing import Annotated, Literal
+
+from yeetr import Arg
+
+logger = getLogger("Tmp")
+
+type PDFPathArg = Annotated[Path, Arg(help="Path to the PDF file")]
+
+
+def main(
+    pdf_path: PDFPathArg = Path("./"),
+    *,
+    tol: float = 0.002,
+    mode: Literal["auto", "text", "vision"] = "auto",
+) -> None:
+    """Main entrypoint to process the PDF"""
+    logger.info(f"Processing PDF at: {pdf_path}, tol: {tol}, mode: {mode}")
+```
+
+produces help like this:
+
+<p align="center">
+  <img src="https://rogerthomas.github.io/yeetr/assets/yeetr-help.png" alt="yeetr help output" width="900">
+</p>
 
 ---
 
