@@ -198,6 +198,22 @@ accepts `alias`, `aliases`, `help`, `metavar`, `envvar`, `hidden`, and the
 path validators below. Mixing them (e.g. `Opt` on a positional or `Arg` on a
 keyword-only parameter) raises a clear `YeeterError`.
 
+You can also define aliases once and reuse them:
+
+```python
+from pathlib import Path
+from typing import Annotated
+from yeeter import Arg, Opt
+
+
+type InputPath = Annotated[Path, Arg(help="Input file")]
+type WorkerCount = Annotated[int, Opt(alias="-w", help="Worker count")]
+
+
+def main(path: InputPath, *, workers: WorkerCount = 4) -> None:
+    ...
+```
+
 ---
 
 ## Environment variable fallback (`Opt(envvar=...)`)
@@ -401,15 +417,18 @@ designed for that.
 
 ---
 
-## Versioning and release flow
+## Releases
 
-yeeter uses CalVer based on the release date. Versions are published in
+`yeeter` uses CalVer based on the release date. Versions are published in
 PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21`; multiple releases on the same day use `.postN`, for example
-`2026.5.21.post1`. Run `task release` to create the `release/{TAG}` PR,
-then merge it. GitHub Actions tags the merge commit, creates the GitHub
-Release, and a separate workflow deploys docs. To bump
-a release version manually, run `uv version <version>`.
+`2026.5.21.post1`.
+
+Run `task release` to create the `release/{TAG}` PR, then merge it.
+GitHub Actions tags the merge commit, creates the GitHub Release, and a
+separate workflow deploys docs.
+
+To bump a release version manually, run `uv version <version>`.
 ---
 
 ## Development
