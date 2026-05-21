@@ -93,7 +93,7 @@ jobs:
         uses: ./.github/actions/setup-python-env
 
       - name: Download updated release files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-files
           path: .
@@ -127,7 +127,7 @@ jobs:
           ref: ${{ needs.set-version.outputs.persist-ref }}
 
       - name: Download updated release files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-files
           path: .
