@@ -36,11 +36,11 @@ CLI command: `yeet`
 
 ---
 
-## Minimal example
+## Getting Started
 
 ### Zero-boilerplate: the `yeet` script
 
-Installing yeetr also installs a `yeet` script that finds and runs a
+Installing `yeetr` also installs a `yeet` script that finds and runs a
 function in any Python file.
 
 No `if __name__ == "__main__"` block, no `yeetr.run(...)` call — just
@@ -97,7 +97,9 @@ the whole mapping — no decorators, no per-parameter annotations needed.
 
 ---
 
-## Hashbang
+## Script Execution
+
+### Hashbang
 
 For tiny scripts, you can make the file itself executable and let `yeet`
 discover `main` directly from the shebang. The short forms are:
@@ -133,7 +135,47 @@ If you need a different entry function, keep the shebang simple and call
 
 ---
 
-## Async
+## Help And Error Messages
+
+On `--help` or a CLI parse error, yeetr renders the target function's
+arguments and options in the same readable Rich table layout.
+
+For example, this script:
+
+```python
+#!yeet
+from logging import getLogger
+from pathlib import Path
+from typing import Annotated, Literal
+
+from yeetr import Arg
+
+logger = getLogger("Tmp")
+
+type PDFPathArg = Annotated[Path, Arg(help="Path to the PDF file")]
+
+
+def main(
+    pdf_path: PDFPathArg = Path("./"),
+    *,
+    tol: float = 0.002,
+    mode: Literal["auto", "text", "vision"] = "auto",
+) -> None:
+    """Main entrypoint to process the PDF"""
+    logger.info(f"Processing PDF at: {pdf_path}, tol: {tol}, mode: {mode}")
+```
+
+produces help like this:
+
+<p align="center">
+  <img src="https://rogerthomas.github.io/yeetr/assets/yeetr-help.png" alt="yeetr help output" width="900">
+</p>
+
+---
+
+## Function Signatures
+
+### Async
 
 ```python
 async def main(name: str, *, loud: bool = False) -> None:
@@ -157,7 +199,9 @@ change required. Otherwise it falls back to the stdlib event loop.
 
 ---
 
-## Path
+## Supported Parameter Types
+
+### Path
 
 ```python
 from pathlib import Path
@@ -173,7 +217,7 @@ yeet file.py input.pdf --output out.txt
 
 ---
 
-## Literal choices
+### Literal choices
 
 ```python
 from typing import Literal
@@ -189,7 +233,9 @@ yeet file.py --format csv
 
 ---
 
-## `Arg` and `Opt` metadata
+## Parameter Metadata
+
+### `Arg` and `Opt`
 
 For aliases and help text, use `Arg` (positional) or `Opt` (keyword-only)
 inside `Annotated`:
@@ -235,7 +281,7 @@ def main(path: InputPath, *, workers: WorkerCount = 4) -> None:
 
 ---
 
-## Environment variable fallback (`Opt(envvar=...)`)
+### Environment variable fallback (`Opt(envvar=...)`)
 
 `Opt(envvar="NAME")` falls back to an environment variable when the flag is
 not provided on the CLI. Precedence: **explicit CLI > env var > default**.
@@ -261,7 +307,7 @@ Env-var values are type-coerced just like CLI values. `bool` accepts
 
 ---
 
-## Hidden options (`Opt(hidden=True)`)
+### Hidden options (`Opt(hidden=True)`)
 
 Hidden options still parse from the CLI but are absent from `--help` (both
 the usage line and the options table):
@@ -277,7 +323,7 @@ def main(*, debug: Annotated[bool, Opt(hidden=True)] = False) -> None:
 
 ---
 
-## Path validators
+### Path validators
 
 `Arg` and `Opt` accept `exists`, `file_okay`, `dir_okay`, `readable`, and
 `writable` for `Path` parameters. They run at parse time and fail with a
@@ -303,7 +349,7 @@ parser-build time. Validators also apply to `list[Path]` and to
 
 ---
 
-## Variadic positional args (`*args`)
+### Variadic positional args (`*args`)
 
 `*args` maps to a trailing variadic positional CLI argument. The annotation
 on `*args` is the **element type** (not `list[T]`):
@@ -342,7 +388,7 @@ the only way to attach per-parameter metadata that fully type-checks.
 
 ---
 
-## Rules
+## CLI Rules
 
 - **Positional** parameters become positional CLI args.
 - **Keyword-only** parameters (after `*`) become `--options`.
@@ -356,14 +402,16 @@ the only way to attach per-parameter metadata that fully type-checks.
 
 ---
 
-## Supported types
+## Supported Primitives
 
 `str`, `int`, `float`, `bool`, `pathlib.Path`, `typing.Literal[...]`,
 `T | None`, `list[T]`. Anything else raises a clear `YeetrError`.
 
 ---
 
-## Logging
+## Runtime Behavior
+
+### Logging
 
 By default, `yeetr.run` installs a Rich-based logging handler before
 invoking your function, so you get formatted logs with zero boilerplate:
@@ -393,7 +441,7 @@ yeetr.run(main, should_setup_logging=False)
 
 ---
 
-## Testing
+### Testing
 
 `run()` accepts an explicit `argv` for tests:
 
@@ -403,7 +451,9 @@ yeetr.run(main, argv=["5", "--n", "0.2"])
 
 ---
 
-## yeetr vs. typer
+## Comparison
+
+### yeetr vs. typer
 
 [Typer](https://github.com/fastapi/typer) is a mature, feature-rich CLI
 framework and a direct inspiration for yeetr — the `Annotated[..., Arg/Opt]`
@@ -436,7 +486,9 @@ designed for that.
 
 ---
 
-## Releases
+## Project Operations
+
+### Releases
 
 `yeetr` uses CalVer based on the release date. Versions are published in
 PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
@@ -461,7 +513,7 @@ pip install yeetr
 ```
 ---
 
-## Development
+### Development
 
 ```
 uv sync

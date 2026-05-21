@@ -912,6 +912,7 @@ def run[T](
     ``should_setup_logging=False`` to take full control of logging
     yourself.
     """
+    print()
     parser, sig, infos = _build_parser(func, prog=prog)
     raw_argv = list(sys.argv[1:]) if argv is None else list(argv)
     namespace = parser.parse_args(raw_argv)
