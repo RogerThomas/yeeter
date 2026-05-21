@@ -2,6 +2,7 @@
 
 import importlib.util
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,7 +18,16 @@ def _load_module(path: Path) -> types.ModuleType:
         sys.stderr.write(f"yeet: cannot load {path}\n")
         sys.exit(2)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[spec.name] = module
+    sys.path.insert(0, str(path.parent))
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        with suppress(KeyError):
+            del sys.modules[spec.name]
+        raise
+    finally:
+        del sys.path[0]
     return module
 
 

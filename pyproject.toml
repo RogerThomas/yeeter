@@ -2,7 +2,7 @@
 name = "yeetr"
 version = "2026.5.21.post16"
 description = "A tiny, typed, signature-driven CLI runner."
-authors = [{ name = "yeeter", email = "noreply@example.com" }]
+authors = [{ name = "yeetr", email = "noreply@example.com" }]
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -21,7 +21,7 @@ dependencies = ["rich>=15.0.0", "rich-argparse>=1.5.2"]
 uvloop = ["uvloop>=0.21.0"]
 
 [project.scripts]
-yeet = "yeeter._cli:main"
+yeet = "yeetr._cli:main"
 
 [project.urls]
 Homepage = "https://rogerthomas.github.io/yeetr/"
@@ -48,11 +48,11 @@ requires = ["uv_build>=0.11.0,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-module-name = "yeeter"
+module-name = "yeetr"
 module-root = ""
 
 [tool.pyright]
-include = ["yeeter", "tests"]
+include = ["yeetr", "tests"]
 pythonVersion = "3.14"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
@@ -101,7 +101,7 @@ select = [
     "YTT", # flake8-2020
     "T10", # debugger statements
 ]
-ignore = ["TC006"]
+ignore = ["COM812", "TC006"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
@@ -109,7 +109,7 @@ ignore = ["TC006"]
     "ANN001",
     "S101",   # use of assert detected
 ]
-"yeeter/_runner.py" = ["ANN401", "FBT001", "FBT003", "TRY003"]
+"yeetr/_runner.py" = ["ANN401", "FBT001", "FBT003", "TRY003"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15
@@ -122,7 +122,7 @@ skip_empty = true
 
 [tool.coverage.run]
 branch = true
-source = ["yeeter"]
+source = ["yeetr"]
 
 [tool.pylint."messages control"]
 disable = ["duplicate-code", "no-name-in-module"]
