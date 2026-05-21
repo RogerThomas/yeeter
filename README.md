@@ -173,7 +173,11 @@ produces help like this:
 
 ---
 
-## Function Signatures
+## Async Support
+
+`yeetr` supports async functions natively. Just make your `main` an `async def` and `yeet`
+will run it with `asyncio.run` or `uvloop.run` if [uvloop](https://github.com/MagicStack/uvloop)
+is installed.
 
 ### Async
 
