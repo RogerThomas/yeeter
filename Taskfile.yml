@@ -57,7 +57,7 @@ tasks:
       - uv run ./scripts/release_version.py {{.CLI_ARGS}}
 
   release:
-    desc: Trigger the GitHub Actions release PR workflow
+    desc: Trigger the GitHub Actions release branch workflow
     cmds:
       - gh workflow run release-pr.yml --ref main {{.CLI_ARGS}}
 

@@ -2,7 +2,6 @@ name: release-pr
 
 permissions:
   contents: write
-  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -79,26 +78,14 @@ jobs:
           git push --force-with-lease --set-upstream origin "release/${{ steps.read-version.outputs.release_version }}"
           echo "did_commit=true" >> "$GITHUB_OUTPUT"
 
-      - name: Create or update pull request
+      - name: Show manual PR instructions
         if: ${{ steps.commit.outputs.did_commit == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "Missing RELEASE_BOT_TOKEN repository secret."
-            exit 1
-          fi
           branch="release/${{ steps.read-version.outputs.release_version }}"
-          title="chore: release ${{ steps.read-version.outputs.release_version }}"
-          body="Automated release version bump for ${{ steps.read-version.outputs.release_version }}."
-          existing_pr="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
-          if [ -n "$existing_pr" ]; then
-            gh pr edit "$existing_pr" --title "$title" --body "$body"
-            gh pr view "$existing_pr" --json url --jq '.url'
-          else
-            gh pr create \
-              --base "${{ github.event.repository.default_branch }}" \
-              --head "$branch" \
-              --title "$title" \
-              --body "$body"
-          fi
+          pr_url="https://github.com/${{ github.repository }}/compare/${{ github.event.repository.default_branch }}...$branch?expand=1"
+          {
+            echo "Release branch pushed: \`$branch\`"
+            echo ""
+            echo "Open a pull request manually:"
+            echo "$pr_url"
+          } >> "$GITHUB_STEP_SUMMARY"
