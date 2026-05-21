@@ -9,7 +9,7 @@ copyright: Maintained by Roger Thomas.
 
 nav:
   - Home: index.md
-  - Modules: modules.md
+  - API Reference: modules.md
 plugins:
   - search
   - mkdocstrings:

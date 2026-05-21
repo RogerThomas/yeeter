@@ -1,4 +1,4 @@
-#!uv run
+#!yeet
 """Kitchen-sink example for yeeter.
 
 Run a few of these to see the CLI behaviour:
