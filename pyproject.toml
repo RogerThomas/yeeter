@@ -15,14 +15,13 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = [
-    "rich>=15.0.0",
-    "rich-argparse>=1.5.2",
-    "typer>=0.25.1",
-]
+dependencies = ["rich>=15.0.0", "rich-argparse>=1.5.2"]
 
 [project.optional-dependencies]
 uvloop = ["uvloop>=0.21.0"]
+
+[project.scripts]
+yeet = "yeeter._cli:main"
 
 [project.urls]
 Homepage = "https://fpgmaas.github.io/yeeter/"
@@ -41,6 +40,7 @@ dev = [
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.3",
     "prek>=0.4.1",
+    "pylint>=3.3.8",
 ]
 
 [build-system]
@@ -62,55 +62,59 @@ testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py314"
-line-length = 120
+line-length = 100
 fix = true
 
 [tool.ruff.lint]
 select = [
-    # flake8-2020
-    "YTT",
-    # flake8-bandit
-    "S",
-    # flake8-bugbear
-    "B",
-    # flake8-builtins
-    "A",
-    # flake8-comprehensions
-    "C4",
-    # flake8-debugger
-    "T10",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # mccabe
-    "C90",
-    # pycodestyle
-    "E", "W",
-    # pyflakes
-    "F",
-    # pygrep-hooks
-    "PGH",
-    # pyupgrade
-    "UP",
-    # ruff
-    "RUF",
-    # tryceratops
-    "TRY",
+    "A",   # builtins shadowing
+    "ANN", # type annotations
+    "ARG", # unused arguments
+    "B",   # bugbear (common bugs & bad patterns)
+    "BLE", # blind excepts
+    "C4",  # comprehensions
+    "COM", # commas
+    "DTZ", # datetime timezone
+    "E",   # pycodestyle errors
+    "ERA", # eradicate commented-out code
+    "FA",  # future annotations
+    "FBT", # boolean trap
+    "F",   # pyflakes
+    "I",   # import sorting
+    "ICN", # import conventions
+    "ISC", # implicit str concat
+    "N",   # naming conventions
+    "PGH", # pygrep-hooks
+    "PTH", # pathlib
+    "PT",  # pytest style
+    "RET", # return statements
+    "RUF", # Ruff extra rules
+    "TRY", # tryceratops
+    "S",   # security
+    "SIM", # simplifications
+    "C90", # mccabe complexity
+    "TID", # tidy imports
+    "TC",  # typing under TYPE_CHECKING
+    "TD",  # TODOs must be annotated
+    "UP",  # pyupgrade / newer syntax
+    "W",   # pycodestyle warnings
+    "YTT", # flake8-2020
+    "T10", # debugger statements
 ]
-ignore = [
-    # LineTooLong
-    "E501",
-    # DoNotAssignLambda
-    "E731",
-    # RaiseLongMessages (intentional: dynamic messages)
-    "TRY003",
-    # ShadowingPythonBuiltin (`help`, `format` are deliberate user-facing names)
-    "A002",
-]
+ignore = ["TC006"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "B006"]
+"tests/*" = [
+    "A002",
+    "ANN001",
+    "S101", # use of assert detected
+]
+"yeeter/_runner.py" = [
+    "ANN401",
+    "FBT001",
+    "FBT003",
+    "TRY003",
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15
@@ -124,3 +128,15 @@ skip_empty = true
 [tool.coverage.run]
 branch = true
 source = ["yeeter"]
+
+[tool.pylint."messages control"]
+disable = ["duplicate-code", "no-name-in-module"]
+
+[tool.pylint.basic]
+no-docstring-rgx = "^_"
+
+[tool.pylint.design]
+max-args = 10
+max-positional-arguments = 10
+max-locals = 20
+max-attributes = 20

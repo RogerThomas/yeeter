@@ -23,7 +23,7 @@ logger = logging.getLogger("main")
 type Workers = Annotated[int, Opt(alias="-w", help="Worker count")]
 
 
-async def main(
+async def main(  # pylint: disable=too-many-arguments
     # --- positional args (no `*` yet) ---
     pdf_path: Path,
     # Positional with help text via `Annotated`.
@@ -49,11 +49,13 @@ async def main(
     # --- literals as choices with default ---
     log_level: Literal["debug", "info", "warning", "error"] = "info",
     # --- repeated options -> list[T] ---
-    tag: Annotated[list[int], Opt(alias="-t", help="Repeatable tag")] = [],
+    tag: Annotated[list[int] | None, Opt(alias="-t", help="Repeatable tag")] = None,
     # --- multiple aliases ---
     name: Annotated[str, Opt(aliases=("-n", "--who"), help="Who to greet")] = "world",
 ) -> None:
     """Demo command showing every supported parameter style."""
+    if tag is None:
+        tag = []
     if not quiet:
         logger.info("pdf_path     = %s", pdf_path)
         logger.info("out_dir      = %s", out_dir)

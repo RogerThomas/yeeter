@@ -35,6 +35,43 @@ the whole mapping — no decorators, no per-parameter annotations needed.
 
 ---
 
+## Zero-boilerplate: the `yeet` script
+
+Installing yeeter also installs a `yeet` script that finds and runs a
+function in any Python file. No `if __name__ == "__main__"` block, no
+`yeeter.run(...)` call — just the function:
+
+```python
+# app.py
+def main(thing: int, *, n: float = 0.1) -> None:
+    print(thing, n)
+```
+
+```
+uv run yeet app.py 5 --n 0.2
+```
+
+The default function name is `main`. Pass a different one to pick another
+top-level function in the same file:
+
+```python
+# app.py
+def main(...) -> None: ...
+def greet(name: str, *, loud: bool = False) -> None: ...
+```
+
+```
+uv run yeet app.py greet world --loud
+```
+
+`yeet app.py --help` prints the **target function's** help, not yeet's.
+`yeet` itself only has `yeet FILE [FUNC] [args...]`.
+
+You can still use the explicit `yeeter.run(main)` form when you prefer —
+the `yeet` script is just sugar on top of it.
+
+---
+
 ## Async
 
 ```python

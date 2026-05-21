@@ -1,14 +1,20 @@
+"""Tests for yeeter's signature-driven CLI runner."""
+
+# pylint: disable=import-outside-toplevel,missing-function-docstring,redefined-builtin
+
 import asyncio
 import logging
-from collections.abc import Iterator
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import pytest
 from rich.logging import RichHandler
 
 import yeeter
 from yeeter import Arg, Opt, YeeterError
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture(autouse=True)
@@ -156,7 +162,9 @@ def test_kebab_case_conversion() -> None:
 def test_list_repeated_options() -> None:
     captured: dict[str, object] = {}
 
-    def main(*, tag: list[str] = []) -> None:
+    def main(*, tag: list[str] | None = None) -> None:
+        if tag is None:
+            tag = []
         captured["tag"] = tag
 
     yeeter.run(main, argv=["--tag", "a", "--tag", "b"])
@@ -216,7 +224,9 @@ def test_arg_on_keyword_only_raises() -> None:
 
 
 def test_missing_annotation_errors() -> None:
-    def main(thing) -> None:  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+    def main(
+        thing,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+    ) -> None:
         del thing
 
     with pytest.raises(YeeterError):
@@ -538,7 +548,9 @@ def test_envvar_list_splits_on_pathsep(monkeypatch: pytest.MonkeyPatch) -> None:
 
     captured: dict[str, object] = {}
 
-    def main(*, tag: Annotated[list[str], Opt(envvar="TAGS")] = []) -> None:
+    def main(*, tag: Annotated[list[str] | None, Opt(envvar="TAGS")] = None) -> None:
+        if tag is None:
+            tag = []
         captured["tag"] = tag
 
     monkeypatch.setenv("TAGS", f"a{os.pathsep}b{os.pathsep}c")
@@ -699,7 +711,9 @@ def test_path_checks_on_non_path_raises() -> None:
 def test_path_checks_on_list_path(tmp_path: Path) -> None:
     captured: dict[str, object] = {}
 
-    def main(*, paths: Annotated[list[Path], Opt(exists=True)] = []) -> None:
+    def main(*, paths: Annotated[list[Path] | None, Opt(exists=True)] = None) -> None:
+        if paths is None:
+            paths = []
         captured["paths"] = paths
 
     file = tmp_path / "file"
@@ -727,3 +741,78 @@ def test_path_checks_on_var_positional_rejects_missing(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
     with pytest.raises(SystemExit):
         yeeter.run(main, argv=[str(missing)])
+
+
+def _write_demo(tmp_path: Path) -> Path:
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def main(thing: int, *, n: float = 0.1) -> None:\n"
+        "    print(f'main thing={thing} n={n}')\n"
+        "\n"
+        "def greet(name: str, *, loud: bool = False) -> None:\n"
+        "    msg = f'hello {name}'\n"
+        "    print(msg.upper() if loud else msg)\n",
+    )
+    return file
+
+
+def test_yeet_cli_defaults_to_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    file = _write_demo(tmp_path)
+    yeet_main([str(file), "5", "--n", "0.2"])
+    out = capsys.readouterr().out
+    assert "main thing=5 n=0.2" in out
+
+
+def test_yeet_cli_explicit_func(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    file = _write_demo(tmp_path)
+    yeet_main([str(file), "greet", "world", "--loud"])
+    out = capsys.readouterr().out
+    assert "HELLO WORLD" in out
+
+
+def test_yeet_cli_missing_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(tmp_path / "nope.py")])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "file not found" in err
+
+
+def test_yeet_cli_no_args_prints_usage(capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([])
+    assert exc.value.code == 2
+    out = capsys.readouterr().out
+    assert "yeet FILE" in out
+
+
+def test_yeet_cli_help(capsys: pytest.CaptureFixture[str]) -> None:
+    from yeeter._cli import main as yeet_main
+
+    with pytest.raises(SystemExit) as exc:
+        yeet_main(["--help"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "yeet FILE" in out
+
+
+def test_yeet_cli_forwards_help_to_target(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeeter._cli import main as yeet_main
+
+    file = _write_demo(tmp_path)
+    with pytest.raises(SystemExit):
+        yeet_main([str(file), "--help"])
+    out = capsys.readouterr().out
+    assert "THING" in out
+    assert "--n" in out

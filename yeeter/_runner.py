@@ -1,3 +1,5 @@
+"""Core signature-to-argparse conversion and CLI execution helpers."""
+
 import argparse
 import asyncio
 import inspect
@@ -6,7 +8,6 @@ import os
 import sys
 import types
 import typing
-from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from inspect import Parameter, Signature
 from pathlib import Path
@@ -19,6 +20,9 @@ from rich.text import Text
 from rich_argparse import RichHelpFormatter
 
 from ._metadata import Arg, Opt
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable, Sequence
 
 
 class _Unset:
@@ -50,10 +54,13 @@ class _PathChecks:
     writable: bool = False
 
     def is_active(self) -> bool:
-        return self.exists or not self.file_okay or not self.dir_okay or self.readable or self.writable
+        """Return whether any path validation rule is enabled."""
+        return (
+            self.exists or not self.file_okay or not self.dir_okay or self.readable or self.writable
+        )
 
 
-@dataclass
+@dataclass  # pylint: disable=too-many-instance-attributes
 class _ParamInfo:
     name: str
     is_positional: bool
@@ -106,7 +113,8 @@ def _format_default(value: Any) -> str:
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, list):
-        return f"[{', '.join(map(repr, value))}]" if value else "[]"  # pyright: ignore[reportUnknownArgumentType]
+        items = typing.cast("list[object]", value)
+        return f"[{', '.join(repr(item) for item in items)}]" if items else "[]"
     return repr(value)
 
 
@@ -121,7 +129,7 @@ def _with_default_suffix(help_text: str | None, default: Any) -> str:
 def _is_optional(annotation: Any) -> tuple[bool, Any]:
     origin = get_origin(annotation)
     if origin is typing.Union or origin is types.UnionType:
-        args = [_resolve_type_alias(a) for a in get_args(annotation) if a is not type(None)]
+        args = [_resolve_type_alias(a) for a in get_args(annotation) if a is not types.NoneType]
         if len(args) == 1 and len(get_args(annotation)) == 2:
             return True, args[0]
     return False, annotation
@@ -214,8 +222,9 @@ def _validate_path_checks_target(
         target = inner_t
     if target is not Path:
         raise YeeterError(
-            f"Path validators (exists/file_okay/dir_okay/readable/writable) are only valid on `Path` "
-            f"parameters; parameter {param_name!r} is of type {getattr(target, '__name__', target)!r}.",
+            "Path validators (exists/file_okay/dir_okay/readable/writable) are only valid on "
+            f"`Path` parameters; parameter {param_name!r} is of type "
+            f"{getattr(target, '__name__', target)!r}.",
         )
 
 
@@ -241,12 +250,16 @@ def _coerce_value(raw: str, target: Any, param_name: str) -> Any:
         try:
             return int(raw)
         except ValueError as exc:
-            raise argparse.ArgumentTypeError(f"invalid int value for {param_name!r}: {raw!r}") from exc
+            raise argparse.ArgumentTypeError(
+                f"invalid int value for {param_name!r}: {raw!r}",
+            ) from exc
     if target is float:
         try:
             return float(raw)
         except ValueError as exc:
-            raise argparse.ArgumentTypeError(f"invalid float value for {param_name!r}: {raw!r}") from exc
+            raise argparse.ArgumentTypeError(
+                f"invalid float value for {param_name!r}: {raw!r}",
+            ) from exc
     if target is Path:
         return Path(raw)
     if target is bool:
@@ -300,7 +313,8 @@ def _add_var_positional(
 
     if isinstance(metadata, Opt):
         raise YeeterError(
-            f"Variadic positional parameter {param.name!r} is annotated with `Opt`; use `Arg` on `*args`.",
+            f"Variadic positional parameter {param.name!r} is annotated with `Opt`; "
+            "use `Arg` on `*args`.",
         )
 
     if get_origin(base) is list:
@@ -341,7 +355,10 @@ def _add_var_positional(
     )
 
 
-def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamInfo:
+def _add_parameter(  # pylint: disable=too-many-locals
+    parser: argparse.ArgumentParser,
+    param: Parameter,
+) -> _ParamInfo:
     annotation = param.annotation
     if annotation is Parameter.empty:
         raise YeeterError(f"Parameter {param.name!r} is missing a type annotation.")
@@ -361,7 +378,8 @@ def _add_parameter(parser: argparse.ArgumentParser, param: Parameter) -> _ParamI
         )
     if not is_keyword_only and isinstance(metadata, Opt):
         raise YeeterError(
-            f"Parameter {param.name!r} is positional but is annotated with `Opt`; use `Arg` for positional parameters.",
+            f"Parameter {param.name!r} is positional but is annotated with `Opt`; "
+            "use `Arg` for positional parameters.",
         )
 
     origin = get_origin(effective)
@@ -456,7 +474,7 @@ def _build_flags(param_name: str, metadata: Opt | None) -> list[str]:
     return [*shorts, long_flag, *longs]
 
 
-def _add_option(
+def _add_option(  # pylint: disable=too-many-arguments
     *,
     parser: argparse.ArgumentParser,
     param_name: str,
@@ -528,7 +546,11 @@ def _add_option(
         if envvar_active:
             list_default = _UNSET
         else:
-            list_default = list(default) if has_default and default is not None else ([] if has_default else None)
+            list_default = (
+                list(default)
+                if has_default and default is not None
+                else ([] if has_default else None)
+            )
         parser.add_argument(
             *flags,
             dest=param_name,
@@ -722,7 +744,12 @@ def _required_text(required: bool) -> Text:
 
 
 def _arguments_table(infos: list[_ParamInfo]) -> Table:
-    table = Table(title="Arguments", title_style="bold cyan", title_justify="left", show_lines=False)
+    table = Table(
+        title="Arguments",
+        title_style="bold cyan",
+        title_justify="left",
+        show_lines=False,
+    )
     table.add_column("Name", style="bold green", no_wrap=True)
     table.add_column("Type", style="magenta", no_wrap=True)
     table.add_column("Required", no_wrap=True)
@@ -790,7 +817,10 @@ def _default_prog() -> str:
     return Path(argv0).name or "app"
 
 
-def _build_call_args(sig: Signature, namespace: argparse.Namespace) -> tuple[list[Any], dict[str, Any]]:
+def _build_call_args(
+    sig: Signature,
+    namespace: argparse.Namespace,
+) -> tuple[list[Any], dict[str, Any]]:
     has_var_positional = any(p.kind is Parameter.VAR_POSITIONAL for p in sig.parameters.values())
     args: list[Any] = []
     kwargs: dict[str, Any] = {}
@@ -837,7 +867,8 @@ def _resolve_envvars(
             setattr(namespace, info.name, info.default)
         else:
             raise YeeterError(
-                f"option {info.name!r} requires either a CLI value or environment variable {info.envvar!r}",
+                f"option {info.name!r} requires either a CLI value or "
+                f"environment variable {info.envvar!r}",
             )
 
 
@@ -896,7 +927,7 @@ def run[T](
 
 def _run_coroutine(coro: Any) -> Any:
     try:
-        import uvloop  # pyright: ignore[reportMissingImports]
+        import uvloop  # pyright: ignore[reportMissingImports]  # pylint: disable=import-outside-toplevel
     except ImportError:
         return asyncio.run(coro)
     return uvloop.run(coro)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]

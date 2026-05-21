@@ -3,6 +3,16 @@ name: release-main
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to stamp into pyproject.toml (blank = today's CalVer YYYY.MM.DD)"
+        default: ""
+        required: false
+      publish:
+        description: "Actually publish to PyPI?"
+        type: boolean
+        default: false
 
 jobs:
 
@@ -13,15 +23,24 @@ jobs:
 
       - name: Export tag
         id: vars
-        run: echo tag=${GITHUB_REF#refs/*/} >> $GITHUB_OUTPUT
-        if: ${{ github.event_name == 'release' }}
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${GITHUB_REF#refs/*/}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            tag="${{ inputs.version }}"
+          else
+            tag="$(date -u +%Y.%m.%d)"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Using version: $tag"
 
       - name: Update project version
         run: |
           sed -i "s/^version = \".*\"/version = \"$RELEASE_VERSION\"/" pyproject.toml
+          echo "--- pyproject.toml head ---"
+          head -n 10 pyproject.toml
         env:
           RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
-        if: ${{ github.event_name == 'release' }}
 
       - name: Upload updated pyproject.toml
         uses: actions/upload-artifact@v4
@@ -47,13 +66,24 @@ jobs:
       - name: Build package
         run: uv build
 
+      - name: Show built artifacts
+        run: ls -la dist/
+
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
       - name: Publish package
+        if: ${{ github.event_name == 'release' || inputs.publish }}
         run: uv publish
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
 
   deploy-docs:
     needs: publish
+    if: ${{ github.event_name == 'release' }}
     permissions:
       contents: read
       pages: write

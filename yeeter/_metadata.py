@@ -1,3 +1,5 @@
+"""Public metadata objects used to describe CLI parameters."""
+
 from dataclasses import dataclass
 
 
