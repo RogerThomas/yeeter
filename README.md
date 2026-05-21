@@ -415,10 +415,9 @@ designed for that.
 yeeter uses CalVer based on the release date. Versions are published in
 PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21`; multiple releases on the same day use `.postN`, for example
-`2026.5.21.post1`. GitHub Actions creates the release branch when you run
-`task release`; open the pull request from that branch manually. Once that
-PR merges, another workflow tags the commit and publishes the release. To
-bump a release version manually, run
+`2026.5.21.post1`. Run `task release` to create the release branch and open
+the pull request. Once that PR merges, another workflow tags the commit and
+publishes the release. To bump a release version manually, run
 `uv version <version>`, or use `task release-version` to compute today's
 next release automatically.
 

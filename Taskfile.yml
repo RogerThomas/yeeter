@@ -57,9 +57,9 @@ tasks:
       - uv run ./scripts/release_version.py {{.CLI_ARGS}}
 
   release:
-    desc: Trigger the GitHub Actions release branch workflow
+    desc: Create a release branch and pull request
     cmds:
-      - gh workflow run release-pr.yml --ref main {{.CLI_ARGS}}
+      - uv run ./scripts/create_release.py {{.CLI_ARGS}}
 
   docs-test:
     desc: Test if documentation can be built without warnings or errors

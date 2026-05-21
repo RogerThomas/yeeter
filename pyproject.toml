@@ -33,6 +33,7 @@ dev = [
     "pytest>=9.0.2",
     "tox-uv>=1.33.4",
     "deptry>=0.25.1",
+    "GitPython>=3.1.44",
     "pyright>=1.1.380",
     "pytest-cov>=7.0.0",
     "ruff>=0.15.7",
@@ -136,3 +137,6 @@ max-args = 10
 max-positional-arguments = 10
 max-locals = 20
 max-attributes = 20
+
+[tool.deptry.per_rule_ignores]
+DEP004 = ["git"]

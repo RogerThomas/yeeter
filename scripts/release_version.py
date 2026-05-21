@@ -31,7 +31,9 @@ class ReleaseVersion:
         return f"{base}.post{self.post}"
 
 
-def _read_current_version(pyproject_path: Path) -> str:
+def read_current_version(pyproject_path: Path) -> str:
+    """Read the current project version from ``pyproject.toml``."""
+
     pyproject = tomllib.loads(pyproject_path.read_text())
     project = pyproject["project"]
     version = project["version"]
@@ -92,7 +94,7 @@ def main() -> int:
     args = _build_parser().parse_args()
     pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
     if args.version is None:
-        current_version = _read_current_version(pyproject_path)
+        current_version = read_current_version(pyproject_path)
         release_date = args.date or dt.datetime.now(tz=dt.UTC).date()
         next_version = next_release_version(
             current_version=current_version,
