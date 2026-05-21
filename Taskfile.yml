@@ -8,6 +8,10 @@ tasks:
       - uv sync
       - uv run prek install
 
+  deps-lock: uv lock {{.CLI_ARGS}}
+
+  deps-sync: uv sync --all-groups
+
   check:
     desc: Run code quality tools
     cmds:
