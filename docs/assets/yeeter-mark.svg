@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="96" fill="#040505"/>
+  <g filter="url(#glow)">
+    <rect x="78" y="94" width="252" height="188" rx="28" stroke="#A7FF00" stroke-width="12"/>
+    <circle cx="124" cy="136" r="10" fill="#A7FF00"/>
+    <circle cx="161" cy="136" r="10" fill="#A7FF00"/>
+    <circle cx="198" cy="136" r="10" fill="#A7FF00"/>
+    <path d="M120 186L176 219L120 252" stroke="#A7FF00" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M198 256H252" stroke="#A7FF00" stroke-width="14" stroke-linecap="square"/>
+    <path d="M306 176H360" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M292 202H344" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M382 202H394" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M292 228H329" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M346 228H392" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M292 254H352" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M368 254H378" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M402 164L452 219L402 274" stroke="#A7FF00" stroke-width="18" stroke-linejoin="miter"/>
+  </g>
+  <defs>
+    <filter id="glow" x="52" y="68" width="426" height="232" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="4" result="effect1_foregroundBlur"/>
+    </filter>
+  </defs>
+</svg>

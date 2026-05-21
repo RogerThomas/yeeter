@@ -1,0 +1,27 @@
+<svg width="1600" height="720" viewBox="0 0 1600 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="720" rx="36" fill="#040505"/>
+  <g filter="url(#glow)">
+    <rect x="104" y="214" width="382" height="276" rx="34" stroke="#A7FF00" stroke-width="12"/>
+    <circle cx="164" cy="274" r="10" fill="#A7FF00"/>
+    <circle cx="202" cy="274" r="10" fill="#A7FF00"/>
+    <circle cx="240" cy="274" r="10" fill="#A7FF00"/>
+    <path d="M161 365L228 404.5L161 444" stroke="#A7FF00" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M252 450H320" stroke="#A7FF00" stroke-width="14" stroke-linecap="square"/>
+    <path d="M468 333H560" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M446 356H520" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M590 356H616" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M446 382H492" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M514 382H619" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M446 409H545" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M588 409H603" stroke="#A7FF00" stroke-width="10" stroke-linecap="round"/>
+    <path d="M629 316L689 379L629 444" stroke="#A7FF00" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter"/>
+    <text x="754" y="438" fill="#A7FF00" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="168" font-weight="700" letter-spacing="-10">yeeter</text>
+  </g>
+  <defs>
+    <filter id="glow" x="76" y="186" width="1468" height="332" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="4" result="effect1_foregroundBlur"/>
+    </filter>
+  </defs>
+</svg>
