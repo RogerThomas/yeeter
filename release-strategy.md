@@ -1,41 +1,35 @@
 # Release Strategy
 
-`yeeter` uses a GitHub Actions-driven release flow that keeps `main` protected and avoids direct bot pushes to the branch.
+`yeeter` uses a PR-based release flow. A small local script creates the release branch and PR, and GitHub Actions tags the merged commit and publishes the release.
 
 ## Overview
 
 1. Run `task release`.
-2. GitHub Actions creates a release PR from a `release/<version>` branch.
-3. The release PR runs the normal `main.yml` checks like any other PR.
-4. After the PR is merged, a separate workflow tags the merge commit and creates the GitHub Release.
-5. The published release triggers the release publish workflow, which publishes to PyPI and deploys docs.
+2. A bash script creates `release/{TAG}`, bumps `pyproject.toml`, runs `task deps-lock`, commits the changes, pushes the branch, and opens the PR.
+3. Merge the release PR into `main`.
+4. GitHub Actions tags the merge commit and creates the GitHub Release.
+5. Publishing the GitHub Release triggers the same workflow again on the `release` event, which publishes to PyPI and deploys docs.
 
 ## Why this exists
 
-`main` is branch-protected and requires the `quality` status check. A workflow that tries to push release version bumps directly to `main` will fail under that protection.
-
-The PR-bot flow solves that by making the version bump a normal pull request:
-
-- source changes stay reviewable
-- required checks still run before merge
-- release automation never bypasses branch protection
+`main` can stay branch-protected. The release branch is the review gate, and GitHub Actions only needs permission to tag the merged commit and create the release.
 
 ## Workflow split
 
-- `release-pr.yml` opens or updates the release PR and bumps `pyproject.toml` and `uv.lock`.
-- `main.yml` runs on all normal PRs, including release PRs.
-- `release-publish.yml` runs only when a merged PR into `main` came from `release/*`.
-- `release-main` runs on the published GitHub Release and handles PyPI publishing plus docs deployment.
+- `scripts/release.sh` creates the release branch and PR.
+- `release.yml` handles tagging the merged release PR and creating the GitHub Release.
+- `release.yml` also handles PyPI publishing and docs deployment when the GitHub Release is published.
+- `main.yml` still runs on normal PRs.
 
 ## Operational requirements
 
-- Repository Actions settings must allow GitHub Actions to create pull requests.
+- Repository Actions settings must allow GitHub Actions to create tags and releases.
 - `task release-version` still exists for manually computing the next CalVer when needed.
-- Normal PRs that touch `pyproject.toml` or `uv.lock` do not become releases unless they came from a `release/*` branch.
+- Normal PRs that touch `pyproject.toml` or `uv.lock` do not become releases.
 
 ## Expected release path
 
 - `task release`
-- merge the release PR
-- wait for GitHub Actions to tag and create the release
-- wait for the published release workflow to publish to PyPI and deploy docs
+- wait for the release PR to merge
+- wait for GitHub Actions to tag the merge commit and create the release
+- wait for the published release job to publish to PyPI and deploy docs

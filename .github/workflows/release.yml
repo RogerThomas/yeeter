@@ -1,4 +1,4 @@
-name: release-publish
+name: release
 
 permissions:
   contents: write
@@ -8,16 +8,26 @@ on:
     types: [closed]
     branches:
       - main
+  release:
+    types: [published]
 
 jobs:
-  publish-release:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/') }}
+  tag-release:
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/') }}
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Validate release branch name
+        run: |
+          branch_name="${{ github.event.pull_request.head.ref }}"
+          if [[ ! "${branch_name}" =~ ^release/[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}(\.post[0-9]+)?$ ]]; then
+            echo "Invalid release branch name: ${branch_name}" >&2
+            exit 1
+          fi
 
       - name: Read release version
         id: read-version
@@ -60,3 +70,44 @@ jobs:
           gh release create "${{ steps.read-version.outputs.release_version }}" \
             --generate-notes \
             --verify-tag
+
+  publish-release:
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: "3.14"
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish package
+        run: uv publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Build documentation
+        run: uv run mkdocs build --clean
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

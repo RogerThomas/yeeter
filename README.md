@@ -415,11 +415,11 @@ designed for that.
 yeeter uses CalVer based on the release date. Versions are published in
 PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21`; multiple releases on the same day use `.postN`, for example
-`2026.5.21.post1`. GitHub Actions opens the release PR for you when you run
-`task release`; once that PR merges, another workflow tags the commit and
-publishes the release. To bump a release version manually, run
-`uv version <version>`, or use `task release-version` to compute today's
-next release automatically.
+`2026.5.21.post1`. Run `task release` to create the `release/{TAG}` PR,
+then merge it. GitHub Actions tags the merge commit, creates the GitHub
+Release, and the published release then triggers PyPI publishing and docs
+deployment. To bump a release version manually, run `uv version <version>`,
+or use `task release-version` to compute today's next release automatically.
 
 ---
 
