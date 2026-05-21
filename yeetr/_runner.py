@@ -101,7 +101,7 @@ def _default_label(has_default: bool, default: Any, effective: Any) -> str:
     return _format_default(default)
 
 
-class YeeterError(Exception):
+class YeetrError(Exception):
     """Raised when the function signature is not convertible into a CLI."""
 
 
@@ -221,7 +221,7 @@ def _validate_path_checks_target(
         (inner_t,) = get_args(effective)
         target = inner_t
     if target is not Path:
-        raise YeeterError(
+        raise YeetrError(
             "Path validators (exists/file_okay/dir_okay/readable/writable) are only valid on "
             f"`Path` parameters; parameter {param_name!r} is of type "
             f"{getattr(target, '__name__', target)!r}.",
@@ -269,7 +269,7 @@ def _coerce_value(raw: str, target: Any, param_name: str) -> Any:
         if lowered in {"false", "0", "no", "n"}:
             return False
         raise argparse.ArgumentTypeError(f"invalid bool value for {param_name!r}: {raw!r}")
-    raise YeeterError(f"Unsupported type {target!r} for parameter {param_name!r}.")
+    raise YeetrError(f"Unsupported type {target!r} for parameter {param_name!r}.")
 
 
 def _type_caster(
@@ -307,18 +307,18 @@ def _add_var_positional(
 ) -> _ParamInfo:
     annotation = param.annotation
     if annotation is Parameter.empty:
-        raise YeeterError(f"Parameter {param.name!r} is missing a type annotation.")
+        raise YeetrError(f"Parameter {param.name!r} is missing a type annotation.")
 
     base, metadata = _unwrap_annotated(annotation)
 
     if isinstance(metadata, Opt):
-        raise YeeterError(
+        raise YeetrError(
             f"Variadic positional parameter {param.name!r} is annotated with `Opt`; "
             "use `Arg` on `*args`.",
         )
 
     if get_origin(base) is list:
-        raise YeeterError(
+        raise YeetrError(
             f"Variadic positional parameter {param.name!r} is annotated as `list[T]`; "
             f"annotate `*{param.name}` with the element type `T` instead.",
         )
@@ -361,7 +361,7 @@ def _add_parameter(  # pylint: disable=too-many-locals
 ) -> _ParamInfo:
     annotation = param.annotation
     if annotation is Parameter.empty:
-        raise YeeterError(f"Parameter {param.name!r} is missing a type annotation.")
+        raise YeetrError(f"Parameter {param.name!r} is missing a type annotation.")
 
     base, metadata = _unwrap_annotated(annotation)
     is_optional, inner = _is_optional(base)
@@ -372,12 +372,12 @@ def _add_parameter(  # pylint: disable=too-many-locals
     default = param.default if has_default else None
 
     if is_keyword_only and isinstance(metadata, Arg):
-        raise YeeterError(
+        raise YeetrError(
             f"Parameter {param.name!r} is keyword-only but is annotated with `Arg`; "
             f"use `Opt` for keyword-only parameters.",
         )
     if not is_keyword_only and isinstance(metadata, Opt):
-        raise YeeterError(
+        raise YeetrError(
             f"Parameter {param.name!r} is positional but is annotated with `Opt`; "
             "use `Arg` for positional parameters.",
         )
@@ -491,7 +491,7 @@ def _add_option(  # pylint: disable=too-many-arguments
 ) -> None:
     if effective is bool:
         if not has_default and not envvar_active:
-            raise YeeterError(
+            raise YeetrError(
                 f"Boolean option {param_name!r} must have a default (use `= False` or `= True`).",
             )
         bool_default: Any = _UNSET if envvar_active else default
@@ -513,7 +513,7 @@ def _add_option(  # pylint: disable=too-many-arguments
                 help=help_text,
             )
         else:
-            raise YeeterError(f"Boolean option {param_name!r} has a non-bool default.")
+            raise YeetrError(f"Boolean option {param_name!r} has a non-bool default.")
         return
 
     rendered_help = _with_default_suffix(help_text, default) if has_default else help_text
@@ -594,7 +594,7 @@ def _add_positional(
         nargs = "?"
 
     if effective is bool:
-        raise YeeterError(
+        raise YeetrError(
             f"Positional boolean parameter {param_name!r} is not supported. "
             f"Make it keyword-only (after `*`) to expose as a --flag.",
         )
@@ -656,7 +656,7 @@ def _build_parser(
     infos: list[_ParamInfo] = []
     for param in sig.parameters.values():
         if param.kind is Parameter.VAR_KEYWORD:
-            raise YeeterError(
+            raise YeetrError(
                 f"Variadic keyword parameter **{param.name} is not supported.",
             )
         if param.kind is Parameter.VAR_POSITIONAL:
@@ -866,7 +866,7 @@ def _resolve_envvars(
         elif info.has_default:
             setattr(namespace, info.name, info.default)
         else:
-            raise YeeterError(
+            raise YeetrError(
                 f"option {info.name!r} requires either a CLI value or "
                 f"environment variable {info.envvar!r}",
             )

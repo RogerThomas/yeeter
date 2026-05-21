@@ -1,6 +1,6 @@
 # Release Strategy
 
-`yeeter` uses a PR-based preparation flow with tag-driven releases. The GitHub repository is `RogerThomas/yeetr`, the published PyPI distribution is `yeetr`, and the import package remains `yeeter`. A small local script creates the release branch and PR, and GitHub Actions creates the GitHub Release when a matching CalVer tag is pushed.
+`yeetr` uses a PR-based preparation flow with tag-driven releases. The GitHub repository is `RogerThomas/yeetr`, the published PyPI distribution is `yeetr`, and the import package remains `yeetr`. A small local script creates the release branch and PR, and GitHub Actions creates the GitHub Release when a matching CalVer tag is pushed.
 
 ## Overview
 
