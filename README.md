@@ -53,7 +53,7 @@ def main(thing: int, *, n: float = 0.1) -> None:
 ```
 
 ```bash
-yeet file.py 5 --n 0.2
+yeet app.py 5 --n 0.2
 ```
 
 The default function name is `main`. Pass a different one to pick another
@@ -66,10 +66,10 @@ def greet(name: str, *, loud: bool = False) -> None: ...
 ```
 
 ```bash
-yeet file.py greet world --loud
+yeet app.py greet world --loud
 ```
 
-`yeet file.py --help` prints the **target function's** help, not yeet's.
+`yeet app.py --help` prints the **target function's** help, not yeet's.
 `yeet` itself only has `yeet FILE [FUNC] [args...]`.
 
 You can still use the explicit `yeetr.run(main)` form when you prefer —
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 ```
 
 ```bash
-yeet file.py 5 --n 0.2
+yeet app.py 5 --n 0.2
 ```
 
 Note the bare `*` in the signature: parameters **before** it become
@@ -111,7 +111,7 @@ async def main(name: str, *, loud: bool = False) -> None:
 ```
 
 ```bash
-yeet file.py world --loud
+yeet app.py world --loud
 ```
 
 If the function is a coroutine, its result is awaited via `asyncio.run`,
@@ -161,7 +161,7 @@ chmod +x greet.py
 ```
 
 If you need a different entry function, keep the shebang simple and call
-`uv run yeet file.py other_func ...` explicitly instead.
+`uv run yeet app.py other_func ...` explicitly instead.
 
 ---
 
@@ -178,7 +178,7 @@ def main(path: Path, *, output: Path | None = None) -> None:
 ```
 
 ```bash
-yeet file.py input.pdf --output out.txt
+yeet app.py input.pdf --output out.txt
 ```
 
 ---
@@ -194,7 +194,7 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
 ```
 
 ```bash
-yeet file.py --format csv
+yeet app.py --format csv
 ```
 
 ---
@@ -221,7 +221,7 @@ def main(
 ```
 
 ```bash
-yeet file.py input.pdf -w 8
+yeet app.py input.pdf -w 8
 ```
 
 `Arg` accepts `help`, `metavar`, `min`, and the path validators below. `Opt`
@@ -262,9 +262,9 @@ def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
 ```
 
 ```bash
-WORKERS=8 yeet file.py        # workers == 8
-yeet file.py --workers 16     # workers == 16 (CLI wins)
-yeet file.py                  # workers == 4  (default)
+WORKERS=8 yeet app.py         # workers == 8
+yeet app.py --workers 16      # workers == 16 (CLI wins)
+yeet app.py                   # workers == 4  (default)
 ```
 
 Env-var values are type-coerced just like CLI values. `bool` accepts
@@ -329,7 +329,7 @@ def main(dst: Path, *sources: Path) -> None:
 ```
 
 ```bash
-yeet file.py dst src1 src2 src3
+yeet app.py dst src1 src2 src3
 ```
 
 By default `*args` accepts zero or more values (argparse `nargs="*"`). Use
@@ -450,7 +450,7 @@ def main(
 produces help like this:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr-help.png" alt="yeetr help output" width="900">
+  <img class="no-radius" src="assets/yeetr-help.png" alt="yeetr help output" width="900">
 </p>
 
 ---

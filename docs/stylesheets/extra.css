@@ -11,6 +11,10 @@
   border-radius: 1rem;
 }
 
+.md-typeset img.no-radius {
+  border-radius: 0;
+}
+
 .md-typeset pre > code {
   border-radius: 0.9rem;
 }
