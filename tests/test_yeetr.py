@@ -774,11 +774,38 @@ def test_yeet_cli_explicit_func(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert "HELLO WORLD" in out
 
 
-def test_yeet_cli_missing_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_yeet_cli_missing_python_file_scaffolds(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "nope.py"
+    yeet_main([str(file)])
+
+    out = capsys.readouterr().out
+    assert f"created {file.resolve()}" in out
+    assert file.read_text() == (
+        "#!yeet\n"
+        "import logging\n"
+        "\n"
+        'logger = logging.getLogger("Main")\n'
+        "\n"
+        "\n"
+        "def main() -> None:\n"
+        '    logger.info("Hello from yeetr")\n'
+    )
+    assert file.stat().st_mode & 0o111 == 0o111
+
+
+def test_yeet_cli_missing_non_python_file_errors(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     from yeetr._cli import main as yeet_main
 
     with pytest.raises(SystemExit) as exc:
-        yeet_main([str(tmp_path / "nope.py")])
+        yeet_main([str(tmp_path / "nope.txt")])
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert "file not found" in err

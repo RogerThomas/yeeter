@@ -56,6 +56,11 @@ def main(thing: int, *, n: float = 0.1) -> None:
 yeet app.py 5 --n 0.2
 ```
 
+If `app.py` does not exist yet, `yeet` will scaffold a runnable Python
+script for you, mark it executable, and print the created path. Run the
+same command a second time, or call `./app.py` directly, and it will
+execute normally.
+
 The default function name is `main`. Pass a different one to pick another
 top-level function in the same file:
 
