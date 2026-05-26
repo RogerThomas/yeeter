@@ -4,6 +4,7 @@
 
 import asyncio
 import logging
+import stat
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
@@ -795,7 +796,9 @@ def test_yeet_cli_missing_python_file_scaffolds(
         "def main() -> None:\n"
         '    logger.info("Hello from yeetr")\n'
     )
-    assert file.stat().st_mode & 0o111 == 0o111
+    assert file.stat().st_mode & stat.S_IXUSR == stat.S_IXUSR
+    assert file.stat().st_mode & stat.S_IXGRP == 0
+    assert file.stat().st_mode & stat.S_IXOTH == 0
 
 
 def test_yeet_cli_missing_non_python_file_errors(

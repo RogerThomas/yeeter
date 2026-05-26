@@ -62,7 +62,7 @@ def _create_script(path: Path) -> None:
     try:
         path.write_text(_script_template())
         current_mode = path.stat().st_mode
-        path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        path.chmod(current_mode | stat.S_IXUSR)
     except OSError as exc:
         _print_error(f"could not create {path}: {exc}")
         sys.exit(2)
