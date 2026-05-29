@@ -1,7 +1,10 @@
 """Core signature-to-argparse conversion and CLI execution helpers."""
 
+# pylint: disable=too-many-lines
+
 import argparse
 import asyncio
+import enum
 import inspect
 import logging
 import os
@@ -60,8 +63,8 @@ class _PathChecks:
         )
 
 
-@dataclass  # pylint: disable=too-many-instance-attributes
-class _ParamInfo:
+@dataclass
+class _ParamInfo:  # pylint: disable=too-many-instance-attributes
     name: str
     is_positional: bool
     long_flag: str | None = None
@@ -77,20 +80,54 @@ class _ParamInfo:
     hidden: bool = False
     effective_type: Any = None
     is_list: bool = False
+    is_tuple: bool = False
     is_literal: bool = False
+    is_enum: bool = False
+    path_checks: _PathChecks = field(default_factory=_PathChecks)
     has_default: bool = False
     default: Any = None
 
 
-def _type_label(effective: Any, is_list: bool, is_literal: bool) -> str:
+def _is_enum_type(target: Any) -> bool:
+    return inspect.isclass(target) and issubclass(target, enum.Enum)
+
+
+def _type_name(target: Any) -> str:
+    return getattr(target, "__name__", str(target))
+
+
+def _is_variable_tuple(effective: Any) -> bool:
+    args = get_args(effective)
+    return len(args) == 2 and args[1] is Ellipsis
+
+
+def _tuple_inner_types(effective: Any) -> tuple[Any, ...]:
+    args = get_args(effective)
+    if not args:
+        raise YeetrError(
+            "Bare tuple annotations are not supported; use tuple[T, ...] or tuple[T, U]."
+        )
+    if _is_variable_tuple(effective):
+        return (args[0],)
+    return args
+
+
+def _type_label(
+    effective: Any, is_list: bool, is_tuple: bool, is_literal: bool, is_enum: bool
+) -> str:
     if effective is bool:
         return "flag"
-    if is_literal:
+    if is_literal or is_enum:
         return "choice"
     if is_list:
         (inner_t,) = get_args(effective)
-        return f"list[{getattr(inner_t, '__name__', str(inner_t))}]"
-    return getattr(effective, "__name__", str(effective))
+        return f"list[{_type_name(inner_t)}]"
+    if is_tuple:
+        inner_types = _tuple_inner_types(effective)
+        if _is_variable_tuple(effective):
+            return f"tuple[{_type_name(inner_types[0])}, ...]"
+        return f"tuple[{', '.join(_type_name(t) for t in inner_types)}]"
+    return _type_name(effective)
 
 
 def _default_label(has_default: bool, default: Any, effective: Any) -> str:
@@ -115,6 +152,11 @@ def _format_default(value: Any) -> str:
     if isinstance(value, list):
         items = typing.cast("list[object]", value)
         return f"[{', '.join(repr(item) for item in items)}]" if items else "[]"
+    if isinstance(value, tuple):
+        items = typing.cast("tuple[object, ...]", value)
+        return f"({', '.join(repr(item) for item in items)})" if items else "()"
+    if isinstance(value, enum.Enum):
+        return repr(value.value)
     return repr(value)
 
 
@@ -212,19 +254,26 @@ def _validate_path_checks_target(
     checks: _PathChecks,
     effective: Any,
     is_list: bool,
+    is_tuple: bool,
     param_name: str,
 ) -> None:
     if not checks.is_active():
         return
-    target = effective
     if is_list:
         (inner_t,) = get_args(effective)
-        target = inner_t
-    if target is not Path:
+        targets = (inner_t,)
+    elif is_tuple:
+        targets = _tuple_inner_types(effective)
+    else:
+        targets = (effective,)
+    invalid = [target for target in targets if target is not Path]
+    if invalid:
+        target = invalid[0]
+        container = str(effective) if is_tuple else f"{_type_name(target)!r}"
         raise YeetrError(
             "Path validators (exists/file_okay/dir_okay/readable/writable) are only valid on "
             f"`Path` parameters; parameter {param_name!r} is of type "
-            f"{getattr(target, '__name__', target)!r}.",
+            f"{container}.",
         )
 
 
@@ -243,7 +292,7 @@ def _apply_path_checks(path: Path, checks: _PathChecks) -> Path:
     return path
 
 
-def _coerce_value(raw: str, target: Any, param_name: str) -> Any:
+def _coerce_value(raw: str, target: Any, param_name: str) -> Any:  # pylint: disable=too-many-return-statements
     if target is str:
         return raw
     if target is int:
@@ -269,7 +318,65 @@ def _coerce_value(raw: str, target: Any, param_name: str) -> Any:
         if lowered in {"false", "0", "no", "n"}:
             return False
         raise argparse.ArgumentTypeError(f"invalid bool value for {param_name!r}: {raw!r}")
+    if _is_enum_type(target):
+        return _coerce_enum_value(raw, target, param_name)
     raise YeetrError(f"Unsupported type {target!r} for parameter {param_name!r}.")
+
+
+def _enum_choices(target: Any) -> list[str]:
+    return [str(member.value) for member in target]
+
+
+def _coerce_enum_value(raw: str, target: Any, param_name: str) -> enum.Enum:
+    for member in target:
+        if raw == str(member.value):
+            return member
+    raise argparse.ArgumentTypeError(
+        f"invalid choice {raw!r} for {param_name!r}; choose from {_enum_choices(target)!r}",
+    )
+
+
+def _coerce_nested_value(raw: str, target: Any, param_name: str) -> Any:
+    origin = get_origin(target)
+    if origin is Literal:
+        return _literal_caster(get_args(target), param_name)(raw)
+    return _coerce_value(raw, target, param_name)
+
+
+def _coerce_tuple_value(
+    raw: Any,
+    effective: Any,
+    param_name: str,
+    path_checks: _PathChecks,
+) -> tuple[Any, ...]:
+    if isinstance(raw, tuple):
+        return typing.cast("tuple[Any, ...]", raw)
+    if not isinstance(raw, list):
+        raise argparse.ArgumentTypeError(f"invalid tuple value for {param_name!r}: {raw!r}")
+    raw_values = typing.cast("list[str]", raw)
+
+    if _is_variable_tuple(effective):
+        (inner_t,) = _tuple_inner_types(effective)
+        values: tuple[Any, ...] = tuple(
+            _coerce_nested_value(item, inner_t, param_name) for item in raw_values
+        )
+    else:
+        inner_types = _tuple_inner_types(effective)
+        if len(raw_values) != len(inner_types):
+            raise argparse.ArgumentTypeError(
+                f"expected {len(inner_types)} values for {param_name!r}; got {len(raw_values)}",
+            )
+        values = tuple(
+            _coerce_nested_value(item, inner_t, param_name)
+            for item, inner_t in zip(raw_values, inner_types, strict=True)
+        )
+
+    if path_checks.is_active():
+        return tuple(
+            _apply_path_checks(value, path_checks) if isinstance(value, Path) else value
+            for value in values
+        )
+    return values
 
 
 def _type_caster(
@@ -301,6 +408,23 @@ def _literal_caster(choices: tuple[Any, ...], param_name: str) -> Callable[[str]
     return cast
 
 
+def _choices_for(effective: Any, is_literal: bool, is_enum: bool) -> list[str]:
+    if is_literal:
+        return [str(c) for c in get_args(effective)]
+    if is_enum:
+        return _enum_choices(effective)
+    return []
+
+
+def _tuple_nargs(effective: Any, has_default: bool, *, is_positional: bool) -> str | int:
+    if _is_variable_tuple(effective):
+        return "*" if has_default else "+"
+    inner_types = _tuple_inner_types(effective)
+    if is_positional and has_default:
+        return "*"
+    return len(inner_types)
+
+
 def _add_var_positional(
     parser: argparse.ArgumentParser,
     param: Parameter,
@@ -329,7 +453,9 @@ def _add_var_positional(
     minimum = arg_meta.min if arg_meta is not None else 0
 
     path_checks = _path_checks_from(arg_meta)
-    _validate_path_checks_target(path_checks, base, is_list=False, param_name=param.name)
+    _validate_path_checks_target(
+        path_checks, base, is_list=False, is_tuple=False, param_name=param.name
+    )
 
     nargs = "+" if minimum >= 1 else "*"
     display_metavar = metavar or _snake_to_kebab(param.name).upper()
@@ -384,13 +510,15 @@ def _add_parameter(  # pylint: disable=too-many-locals
 
     origin = get_origin(effective)
     is_list = origin is list
+    is_tuple = origin is tuple
     is_literal = origin is Literal
+    is_enum = _is_enum_type(effective)
 
     help_text = metadata.help if metadata is not None else None
     metavar = metadata.metavar if metadata is not None else None
 
     path_checks = _path_checks_from(metadata)
-    _validate_path_checks_target(path_checks, effective, is_list, param.name)
+    _validate_path_checks_target(path_checks, effective, is_list, is_tuple, param.name)
 
     envvar = metadata.envvar if isinstance(metadata, Opt) else None
     hidden = metadata.hidden if isinstance(metadata, Opt) else False
@@ -398,17 +526,20 @@ def _add_parameter(  # pylint: disable=too-many-locals
     info = _ParamInfo(
         name=param.name,
         is_positional=not is_keyword_only,
-        type_label=_type_label(effective, is_list, is_literal),
+        type_label=_type_label(effective, is_list, is_tuple, is_literal, is_enum),
         default_label=_default_label(has_default, default, effective),
         required=not has_default,
-        choices=[str(c) for c in get_args(effective)] if is_literal else [],
+        choices=_choices_for(effective, is_literal, is_enum),
         help_text=help_text or "",
         metavar=metavar,
         envvar=envvar,
         hidden=hidden,
         effective_type=effective,
         is_list=is_list,
+        is_tuple=is_tuple,
         is_literal=is_literal,
+        is_enum=is_enum,
+        path_checks=path_checks,
         has_default=has_default,
         default=default,
     )
@@ -422,7 +553,9 @@ def _add_parameter(  # pylint: disable=too-many-locals
             flags=flags,
             effective=effective,
             is_list=is_list,
+            is_tuple=is_tuple,
             is_literal=is_literal,
+            is_enum=is_enum,
             has_default=has_default,
             default=default,
             help_text=help_text,
@@ -439,7 +572,9 @@ def _add_parameter(  # pylint: disable=too-many-locals
             param_name=param.name,
             effective=effective,
             is_list=is_list,
+            is_tuple=is_tuple,
             is_literal=is_literal,
+            is_enum=is_enum,
             has_default=has_default,
             default=default,
             help_text=help_text,
@@ -474,14 +609,16 @@ def _build_flags(param_name: str, metadata: Opt | None) -> list[str]:
     return [*shorts, long_flag, *longs]
 
 
-def _add_option(  # pylint: disable=too-many-arguments
+def _add_option(  # pylint: disable=too-many-arguments,too-many-branches,too-many-locals
     *,
     parser: argparse.ArgumentParser,
     param_name: str,
     flags: list[str],
     effective: Any,
     is_list: bool,
+    is_tuple: bool,
     is_literal: bool,
+    is_enum: bool,
     has_default: bool,
     default: Any,
     help_text: str | None,
@@ -541,6 +678,19 @@ def _add_option(  # pylint: disable=too-many-arguments
         )
         return
 
+    if is_enum:
+        parser.add_argument(
+            *flags,
+            dest=param_name,
+            type=_type_caster(effective, param_name, path_checks),
+            choices=list(effective),
+            default=argparse_default,
+            required=argparse_required,
+            help=rendered_help,
+            metavar=metavar,
+        )
+        return
+
     if is_list:
         (inner_t,) = get_args(effective)
         if envvar_active:
@@ -563,6 +713,18 @@ def _add_option(  # pylint: disable=too-many-arguments
         )
         return
 
+    if is_tuple:
+        parser.add_argument(
+            *flags,
+            dest=param_name,
+            nargs=_tuple_nargs(effective, has_default, is_positional=False),
+            default=argparse_default,
+            required=argparse_required,
+            help=rendered_help,
+            metavar=metavar,
+        )
+        return
+
     parser.add_argument(
         *flags,
         dest=param_name,
@@ -574,13 +736,15 @@ def _add_option(  # pylint: disable=too-many-arguments
     )
 
 
-def _add_positional(
+def _add_positional(  # pylint: disable=too-many-arguments
     *,
     parser: argparse.ArgumentParser,
     param_name: str,
     effective: Any,
     is_list: bool,
+    is_tuple: bool,
     is_literal: bool,
+    is_enum: bool,
     has_default: bool,
     default: Any,
     help_text: str | None,
@@ -615,6 +779,19 @@ def _add_positional(
         parser.add_argument(dest, **kwargs)
         return
 
+    if is_enum:
+        kwargs: dict[str, Any] = {
+            "type": _type_caster(effective, param_name, path_checks),
+            "choices": list(effective),
+            "help": rendered_help,
+            "metavar": display_metavar,
+        }
+        if has_default:
+            kwargs["nargs"] = "?"
+            kwargs["default"] = default
+        parser.add_argument(dest, **kwargs)
+        return
+
     if is_list:
         (inner_t,) = get_args(effective)
         kwargs = {
@@ -625,6 +802,17 @@ def _add_positional(
         }
         if has_default:
             kwargs["default"] = list(default) if default is not None else []
+        parser.add_argument(dest, **kwargs)
+        return
+
+    if is_tuple:
+        kwargs = {
+            "nargs": _tuple_nargs(effective, has_default, is_positional=True),
+            "help": rendered_help,
+            "metavar": display_metavar,
+        }
+        if has_default:
+            kwargs["default"] = default
         parser.add_argument(dest, **kwargs)
         return
 
@@ -835,12 +1023,36 @@ def _build_call_args(
     return args, kwargs
 
 
+def _normalize_parsed_values(
+    parser: argparse.ArgumentParser,
+    namespace: argparse.Namespace,
+    infos: list[_ParamInfo],
+) -> None:
+    for info in infos:
+        if not info.is_tuple:
+            continue
+        value = getattr(namespace, info.name)
+        if isinstance(value, _Unset):
+            continue
+        try:
+            setattr(
+                namespace,
+                info.name,
+                _coerce_tuple_value(value, info.effective_type, info.name, info.path_checks),
+            )
+        except argparse.ArgumentTypeError as exc:
+            parser.error(str(exc))
+
+
 def _coerce_envvar_value(raw: str, info: _ParamInfo) -> Any:
     effective = info.effective_type
     if info.is_list:
         (inner_t,) = get_args(effective)
         parts = raw.split(os.pathsep) if raw else []
         return [_coerce_value(p, inner_t, info.name) for p in parts]
+    if info.is_tuple:
+        parts = raw.split(os.pathsep) if raw else []
+        return _coerce_tuple_value(parts, effective, info.name, info.path_checks)
     if info.is_literal:
         return _literal_caster(get_args(effective), info.name)(raw)
     return _coerce_value(raw, effective, info.name)
@@ -916,6 +1128,7 @@ def run[T](
     parser, sig, infos = _build_parser(func, prog=prog)
     raw_argv = list(sys.argv[1:]) if argv is None else list(argv)
     namespace = parser.parse_args(raw_argv)
+    _normalize_parsed_values(parser, namespace, infos)
     _resolve_envvars(parser, namespace, infos)
     if should_setup_logging:
         _setup_logging(namespace)
