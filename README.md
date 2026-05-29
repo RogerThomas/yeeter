@@ -204,6 +204,49 @@ yeet app.py --format csv
 
 ---
 
+### Enum choices
+
+```python
+from enum import StrEnum
+
+
+class Format(StrEnum):
+    JSON = "json"
+    CSV = "csv"
+
+
+def main(*, format: Format = Format.JSON) -> None:
+    ...
+```
+
+```bash
+yeet app.py --format csv
+```
+
+Enums parse from their member values and the function receives the enum
+member (`Format.CSV` in the example above). Choice values are shown in
+help output and invalid values fail during argument parsing.
+
+---
+
+### Tuples
+
+```python
+def main(point: tuple[int, float], *, values: tuple[int, ...] = ()) -> None:
+    ...
+```
+
+```bash
+yeet app.py 1 2.5 --values 3 4 5
+```
+
+Fixed-width tuples such as `tuple[int, float]` consume exactly one CLI value
+per element and coerce each element according to its annotation. Variable
+tuples such as `tuple[int, ...]` consume one or more values unless they have
+a default, in which case zero values are allowed.
+
+---
+
 ## Parameter Metadata
 
 ### `Arg` and `Opt`
@@ -274,7 +317,8 @@ yeet app.py                   # workers == 4  (default)
 
 Env-var values are type-coerced just like CLI values. `bool` accepts
 `1/0/true/false/yes/no` (case-insensitive). `list[T]` splits on `os.pathsep`
-(`:` on POSIX, `;` on Windows). `Literal` choices are validated.
+(`:` on POSIX, `;` on Windows). `tuple[...]` also splits on `os.pathsep`.
+`Literal` and enum choices are validated.
 
 ---
 
@@ -370,13 +414,17 @@ the only way to attach per-parameter metadata that fully type-checks.
 - `T | None` / `Optional[T]` are accepted; treated as their inner type with
   `None` as default.
 - `list[T]` becomes a repeated option (`--tag a --tag b`).
+- `tuple[T, U]` consumes a fixed number of values.
+- `tuple[T, ...]` consumes a variable number of values.
+- `Enum` subclasses parse from member values and are rendered as choices.
 
 ---
 
 ## Supported Primitives
 
 `str`, `int`, `float`, `bool`, `pathlib.Path`, `typing.Literal[...]`,
-`T | None`, `list[T]`. Anything else raises a clear `YeetrError`.
+`enum.Enum` subclasses, `T | None`, `list[T]`, `tuple[T, U]`, and
+`tuple[T, ...]`. Anything else raises a clear `YeetrError`.
 
 ---
 
