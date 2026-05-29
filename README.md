@@ -1,17 +1,32 @@
 <p align="center">
-  <img src="assets/yeetr.png" alt="yeeter" width="500">
+  <a href="https://rogerthomas.github.io/yeetr/">
+    <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr.png" alt="yeetr" width="500">
+  </a>
+</p>
+<p align="center">
+  <em>yeetr, build tiny CLIs. Easy to code. Based on Python type hints.</em>
+</p>
+<p align="center">
+  <a href="https://github.com/RogerThomas/yeetr/actions/workflows/main.yml?query=branch%3Amain">
+    <img src="https://img.shields.io/github/actions/workflow/status/RogerThomas/yeetr/main.yml?branch=main" alt="Build">
+  </a>
+  <a href="https://github.com/RogerThomas/yeetr/releases">
+    <img src="https://img.shields.io/github/v/release/RogerThomas/yeetr" alt="Release">
+  </a>
+  <a href="https://pypi.org/project/yeetr">
+    <img src="https://img.shields.io/pypi/v/yeetr?color=%2334D058&label=pypi%20package" alt="Package version">
+  </a>
+  <a href="https://github.com/RogerThomas/yeetr/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/RogerThomas/yeetr" alt="License">
+  </a>
 </p>
 
-# yeeter
-
-[![Release](https://img.shields.io/github/v/release/RogerThomas/yeetr)](https://github.com/RogerThomas/yeetr/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/RogerThomas/yeetr/main.yml?branch=main)](https://github.com/RogerThomas/yeetr/actions/workflows/main.yml?query=branch%3Amain)
-[![License](https://img.shields.io/github/license/RogerThomas/yeetr)](https://github.com/RogerThomas/yeetr/blob/main/LICENSE)
+# yeetr
 
 A tiny, typed, signature-driven CLI runner.
 
 PyPI distribution: `yeetr`
-Python import package: `yeeter`
+Python import package: `yeetr`
 CLI command: `yeet`
 
 > No decorators.
@@ -21,14 +36,14 @@ CLI command: `yeet`
 
 ---
 
-## Minimal example
+## Getting Started
 
-### Zero-boilerplate: the `yeet` script
+### Zero-boilerplate: just yeet it
 
-Installing yeeter also installs a `yeet` script that finds and runs a
+Installing `yeetr` also installs a `yeet` script that finds and runs a
 function in any Python file.
 
-No `if __name__ == "__main__"` block, no `yeeter.run(...)` call — just
+No `if __name__ == "__main__"` block, no `yeetr.run(...)` call — just
 the function:
 
 ```python
@@ -37,9 +52,14 @@ def main(thing: int, *, n: float = 0.1) -> None:
     print(thing, n)
 ```
 
+```bash
+yeet app.py 5 --n 0.2
 ```
-yeet file.py 5 --n 0.2
-```
+
+If `app.py` does not exist yet, `yeet` will scaffold a runnable Python
+script for you, mark it executable, and print the created path. Run the
+same command a second time, or call `./app.py` directly, and it will
+execute normally.
 
 The default function name is `main`. Pass a different one to pick another
 top-level function in the same file:
@@ -50,17 +70,17 @@ def main(...) -> None: ...
 def greet(name: str, *, loud: bool = False) -> None: ...
 ```
 
-```
-yeet file.py greet world --loud
+```bash
+yeet app.py greet world --loud
 ```
 
-`yeet file.py --help` prints the **target function's** help, not yeet's.
+`yeet app.py --help` prints the **target function's** help, not yeet's.
 `yeet` itself only has `yeet FILE [FUNC] [args...]`.
 
-You can still use the explicit `yeeter.run(main)` form when you prefer —
+You can still use the explicit `yeetr.run(main)` form when you prefer —
 the `yeet` script is just sugar on top of it.
 
-### Explicit `yeeter.run(main)`
+### Explicit `yeetr.run(main)`
 
 ```python
 def main(thing: int, *, n: float = 0.1) -> None:
@@ -68,12 +88,12 @@ def main(thing: int, *, n: float = 0.1) -> None:
 
 
 if __name__ == "__main__":
-    import yeeter
-    yeeter.run(main)
+    import yeetr
+    yeetr.run(main)
 ```
 
-```
-yeet file.py 5 --n 0.2
+```bash
+yeet app.py 5 --n 0.2
 ```
 
 Note the bare `*` in the signature: parameters **before** it become
@@ -82,7 +102,39 @@ the whole mapping — no decorators, no per-parameter annotations needed.
 
 ---
 
-## Hashbang
+## Async Support
+
+`yeetr` supports async functions natively. Just make your `main` an `async def` and `yeet`
+will run it with `asyncio.run` or `uvloop.run` if [uvloop](https://github.com/MagicStack/uvloop)
+is installed.
+
+### Async
+
+```python
+async def main(name: str, *, loud: bool = False) -> None:
+    ...
+```
+
+```bash
+yeet app.py world --loud
+```
+
+If the function is a coroutine, its result is awaited via `asyncio.run`,
+or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
+optional `uvloop` extra is installed:
+
+```bash
+uv add "yeetr[uvloop]"
+```
+
+When `uvloop` is importable, yeetr uses it transparently — no code
+change required. Otherwise it falls back to the stdlib event loop.
+
+---
+
+## Script Execution
+
+### Hashbang
 
 For tiny scripts, you can make the file itself executable and let `yeet`
 discover `main` directly from the shebang. The short forms are:
@@ -108,41 +160,19 @@ def main(name: str, *, loud: bool = False) -> None:
 
 Then run it directly:
 
-```
+```bash
 chmod +x greet.py
 ./greet.py world --loud
 ```
 
 If you need a different entry function, keep the shebang simple and call
-`uv run yeet file.py other_func ...` explicitly instead.
+`uv run yeet app.py other_func ...` explicitly instead.
 
 ---
 
-## Async
+## Supported Parameter Types
 
-```python
-async def main(name: str, *, loud: bool = False) -> None:
-    ...
-```
-
-```
-yeet file.py world --loud
-```
-
-If the function is a coroutine, its result is awaited via `asyncio.run`,
-or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
-optional `uvloop` extra is installed:
-
-```
-uv add "yeeter[uvloop]"
-```
-
-When `uvloop` is importable, yeeter uses it transparently — no code
-change required. Otherwise it falls back to the stdlib event loop.
-
----
-
-## Path
+### Path
 
 ```python
 from pathlib import Path
@@ -152,13 +182,13 @@ def main(path: Path, *, output: Path | None = None) -> None:
     ...
 ```
 
-```
-yeet file.py input.pdf --output out.txt
+```bash
+yeet app.py input.pdf --output out.txt
 ```
 
 ---
 
-## Literal choices
+### Literal choices
 
 ```python
 from typing import Literal
@@ -168,13 +198,58 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
     ...
 ```
 
-```
-yeet file.py --format csv
+```bash
+yeet app.py --format csv
 ```
 
 ---
 
-## `Arg` and `Opt` metadata
+### Enum choices
+
+```python
+from enum import StrEnum
+
+
+class Format(StrEnum):
+    JSON = "json"
+    CSV = "csv"
+
+
+def main(*, format: Format = Format.JSON) -> None:
+    ...
+```
+
+```bash
+yeet app.py --format csv
+```
+
+Enums parse from their member values and the function receives the enum
+member (`Format.CSV` in the example above). Choice values are shown in
+help output and invalid values fail during argument parsing.
+
+---
+
+### Tuples
+
+```python
+def main(point: tuple[int, float], *, values: tuple[int, ...] = ()) -> None:
+    ...
+```
+
+```bash
+yeet app.py 1 2.5 --values 3 4 5
+```
+
+Fixed-width tuples such as `tuple[int, float]` consume exactly one CLI value
+per element and coerce each element according to its annotation. Variable
+tuples such as `tuple[int, ...]` consume one or more values unless they have
+a default, in which case zero values are allowed.
+
+---
+
+## Parameter Metadata
+
+### `Arg` and `Opt`
 
 For aliases and help text, use `Arg` (positional) or `Opt` (keyword-only)
 inside `Annotated`:
@@ -182,7 +257,7 @@ inside `Annotated`:
 ```python
 from pathlib import Path
 from typing import Annotated
-from yeeter import Arg, Opt
+from yeetr import Arg, Opt
 
 
 def main(
@@ -193,21 +268,21 @@ def main(
     ...
 ```
 
-```
-yeet file.py input.pdf -w 8
+```bash
+yeet app.py input.pdf -w 8
 ```
 
 `Arg` accepts `help`, `metavar`, `min`, and the path validators below. `Opt`
 accepts `alias`, `aliases`, `help`, `metavar`, `envvar`, `hidden`, and the
 path validators below. Mixing them (e.g. `Opt` on a positional or `Arg` on a
-keyword-only parameter) raises a clear `YeeterError`.
+keyword-only parameter) raises a clear `YeetrError`.
 
 You can also define aliases once and reuse them:
 
 ```python
 from pathlib import Path
 from typing import Annotated
-from yeeter import Arg, Opt
+from yeetr import Arg, Opt
 
 
 type InputPath = Annotated[Path, Arg(help="Input file")]
@@ -220,40 +295,41 @@ def main(path: InputPath, *, workers: WorkerCount = 4) -> None:
 
 ---
 
-## Environment variable fallback (`Opt(envvar=...)`)
+### Environment variable fallback (`Opt(envvar=...)`)
 
 `Opt(envvar="NAME")` falls back to an environment variable when the flag is
 not provided on the CLI. Precedence: **explicit CLI > env var > default**.
 
 ```python
 from typing import Annotated
-from yeeter import Opt
+from yeetr import Opt
 
 
 def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
     ...
 ```
 
-```
-WORKERS=8 yeet file.py        # workers == 8
-yeet file.py --workers 16     # workers == 16 (CLI wins)
-yeet file.py                  # workers == 4  (default)
+```bash
+WORKERS=8 yeet app.py         # workers == 8
+yeet app.py --workers 16      # workers == 16 (CLI wins)
+yeet app.py                   # workers == 4  (default)
 ```
 
 Env-var values are type-coerced just like CLI values. `bool` accepts
 `1/0/true/false/yes/no` (case-insensitive). `list[T]` splits on `os.pathsep`
-(`:` on POSIX, `;` on Windows). `Literal` choices are validated.
+(`:` on POSIX, `;` on Windows). `tuple[...]` also splits on `os.pathsep`.
+`Literal` and enum choices are validated.
 
 ---
 
-## Hidden options (`Opt(hidden=True)`)
+### Hidden options (`Opt(hidden=True)`)
 
 Hidden options still parse from the CLI but are absent from `--help` (both
 the usage line and the options table):
 
 ```python
 from typing import Annotated
-from yeeter import Opt
+from yeetr import Opt
 
 
 def main(*, debug: Annotated[bool, Opt(hidden=True)] = False) -> None:
@@ -262,7 +338,7 @@ def main(*, debug: Annotated[bool, Opt(hidden=True)] = False) -> None:
 
 ---
 
-## Path validators
+### Path validators
 
 `Arg` and `Opt` accept `exists`, `file_okay`, `dir_okay`, `readable`, and
 `writable` for `Path` parameters. They run at parse time and fail with a
@@ -271,7 +347,7 @@ clear error:
 ```python
 from pathlib import Path
 from typing import Annotated
-from yeeter import Arg
+from yeetr import Arg
 
 
 def main(
@@ -282,13 +358,13 @@ def main(
 ```
 
 Defaults mirror typer: `file_okay=True`, `dir_okay=True`, others off.
-Setting any path-check on a non-`Path` parameter raises `YeeterError` at
+Setting any path-check on a non-`Path` parameter raises `YeetrError` at
 parser-build time. Validators also apply to `list[Path]` and to
 `*paths: Path`.
 
 ---
 
-## Variadic positional args (`*args`)
+### Variadic positional args (`*args`)
 
 `*args` maps to a trailing variadic positional CLI argument. The annotation
 on `*args` is the **element type** (not `list[T]`):
@@ -301,8 +377,8 @@ def main(dst: Path, *sources: Path) -> None:
     ...
 ```
 
-```
-yeet file.py dst src1 src2 src3
+```bash
+yeet app.py dst src1 src2 src3
 ```
 
 By default `*args` accepts zero or more values (argparse `nargs="*"`). Use
@@ -310,7 +386,7 @@ By default `*args` accepts zero or more values (argparse `nargs="*"`). Use
 
 ```python
 from typing import Annotated
-from yeeter import Arg
+from yeetr import Arg
 
 
 def main(*sources: Annotated[Path, Arg(min=1, help="Source paths")]) -> None:
@@ -327,7 +403,7 @@ the only way to attach per-parameter metadata that fully type-checks.
 
 ---
 
-## Rules
+## CLI Rules
 
 - **Positional** parameters become positional CLI args.
 - **Keyword-only** parameters (after `*`) become `--options`.
@@ -338,25 +414,31 @@ the only way to attach per-parameter metadata that fully type-checks.
 - `T | None` / `Optional[T]` are accepted; treated as their inner type with
   `None` as default.
 - `list[T]` becomes a repeated option (`--tag a --tag b`).
+- `tuple[T, U]` consumes a fixed number of values.
+- `tuple[T, ...]` consumes a variable number of values.
+- `Enum` subclasses parse from member values and are rendered as choices.
 
 ---
 
-## Supported types
+## Supported Primitives
 
 `str`, `int`, `float`, `bool`, `pathlib.Path`, `typing.Literal[...]`,
-`T | None`, `list[T]`. Anything else raises a clear `YeeterError`.
+`enum.Enum` subclasses, `T | None`, `list[T]`, `tuple[T, U]`, and
+`tuple[T, ...]`. Anything else raises a clear `YeetrError`.
 
 ---
 
-## Logging
+## Runtime Behavior
 
-By default, `yeeter.run` installs a Rich-based logging handler before
+### Logging
+
+By default, `yeetr.run` installs a Rich-based logging handler before
 invoking your function, so you get formatted logs with zero boilerplate:
 
 ```python
 import logging
 
-import yeeter
+import yeetr
 
 logger = logging.getLogger("app")
 
@@ -369,37 +451,77 @@ If your function has a `log_level` parameter (e.g.
 `log_level: Literal["debug", "info", "warning", "error"] = "info"`), its
 value drives the log level. Otherwise, the default is `INFO`.
 
-Setup is idempotent: if the root logger already has handlers, yeeter does
+Setup is idempotent: if the root logger already has handlers, yeetr does
 not touch them. To take full control of logging yourself, opt out:
 
 ```python
-yeeter.run(main, should_setup_logging=False)
+yeetr.run(main, should_setup_logging=False)
 ```
 
 ---
 
-## Testing
+### Testing
 
 `run()` accepts an explicit `argv` for tests:
 
 ```python
-yeeter.run(main, argv=["5", "--n", "0.2"])
+yeetr.run(main, argv=["5", "--n", "0.2"])
 ```
 
 ---
 
-## yeeter vs. typer
+## Help And Error Messages
+
+On `--help` or a CLI parse error, yeetr renders the target function's
+arguments and options in the same readable Rich table layout.
+
+For example, this script:
+
+```python
+#!yeet
+from logging import getLogger
+from pathlib import Path
+from typing import Annotated, Literal
+
+from yeetr import Arg
+
+logger = getLogger("Tmp")
+
+type PDFPathArg = Annotated[Path, Arg(help="Path to the PDF file")]
+
+
+def main(
+    pdf_path: PDFPathArg = Path("./"),
+    *,
+    tol: float = 0.002,
+    mode: Literal["auto", "text", "vision"] = "auto",
+) -> None:
+    """Main entrypoint to process the PDF"""
+    logger.info(f"Processing PDF at: {pdf_path}, tol: {tol}, mode: {mode}")
+```
+
+produces help like this:
+
+<p align="center">
+  <img class="no-radius" src="assets/yeetr-help.png" alt="yeetr help output" width="900">
+</p>
+
+---
+
+## Comparison
+
+### yeetr vs. typer
 
 [Typer](https://github.com/fastapi/typer) is a mature, feature-rich CLI
-framework and a direct inspiration for yeeter — the `Annotated[..., Arg/Opt]`
+framework and a direct inspiration for yeetr — the `Annotated[..., Arg/Opt]`
 metadata pattern, path validators, and envvar fallback all take cues from
-typer. yeeter is a much smaller library aimed at a narrower slice of the
+typer. yeetr is a much smaller library aimed at a narrower slice of the
 problem. Quick honest comparison so you can pick the right tool:
 
-| Topic                      | yeeter                                                                 | typer                                                              |
+| Topic                      | yeetr                                                                 | typer                                                              |
 | -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Style                      | Plain function signature, no decorators                                | Decorators (`@app.command()`) or `typer.run`                       |
-| Zero-boilerplate runner    | `yeet main.py [func] [args...]` script — no `if __name__ == "__main__"` / `yeeter.run(...)` block needed | Always need a `typer.run(...)` call or a decorated `@app.command()` entry point |
+| Zero-boilerplate runner    | `yeet main.py [func] [args...]` script — no `if __name__ == "__main__"` / `yeetr.run(...)` block needed | Always need a `typer.run(...)` call or a decorated `@app.command()` entry point |
 | Executable shebang         | `#!yeet` or `#!uv run yeet` can make the script itself executable without extra wrapper code | No equivalent single-line signature-driven runner; still need a `typer.run(...)` or app entry point |
 | Arg vs. option mapping     | Uses Python's `*` separator: before `*` = positional args, after `*` = `--options` (no per-param annotation needed) | Decide per parameter via `typer.Argument(...)` / `typer.Option(...)` |
 | Per-param metadata         | `Annotated[T, Arg(...)]` / `Annotated[T, Opt(...)]`                    | `Annotated[T, typer.Argument(...)]` / `typer.Option(...)`          |
@@ -416,14 +538,16 @@ problem. Quick honest comparison so you can pick the right tool:
 | Best for                   | Single-purpose scripts and tools where the function *is* the CLI       | Multi-command CLIs, distributed apps, anything needing completion  |
 
 If you need subcommands or shell completion, use typer. If you want one
-function = one CLI with minimal ceremony and strict typing, yeeter is
+function = one CLI with minimal ceremony and strict typing, yeetr is
 designed for that.
 
 ---
 
-## Releases
+## Project Operations
 
-`yeeter` uses CalVer based on the release date. Versions are published in
+### Releases
+
+`yeetr` uses CalVer based on the release date. Versions are published in
 PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21`; multiple releases on the same day use `.postN`, for example
 `2026.5.21.post1`.
@@ -442,15 +566,5 @@ To bump a release version manually, run `uv version <version>`.
 Install from PyPI with:
 
 ```bash
-pip install yeetr
-```
----
-
-## Development
-
-```
-uv sync
-uv run ruff check
-uv run pyright
-uv run pytest
+uv add yeetr
 ```

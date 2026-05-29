@@ -1,5 +1,5 @@
 #!yeet
-"""Kitchen-sink example for yeeter.
+"""Kitchen-sink example for yeetr.
 
 Run a few of these to see the CLI behaviour:
 
@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 from typing import Annotated, Literal
 
-from yeeter import Arg, Opt, run
+from yeetr import Arg, Opt, run
 
 logger = logging.getLogger("main")
 

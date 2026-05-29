@@ -15,7 +15,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: ["yeeter"]
+          paths: ["yeetr"]
 theme:
   name: material
   logo: assets/yeetr.png
