@@ -10,7 +10,7 @@ class Arg:
     Usage::
 
         from typing import Annotated
-        from yeeter import Arg
+        from yeetr import Arg
 
         def main(path: Annotated[Path, Arg(help="Input file")]) -> None: ...
 
@@ -21,7 +21,7 @@ class Arg:
     Path validators (``exists``, ``file_okay``, ``dir_okay``, ``readable``,
     ``writable``) apply only when the parameter's effective type is ``Path``
     (or ``list[Path]`` / variadic ``*paths: Path``). Setting any of these on
-    a non-``Path`` parameter raises ``YeeterError`` at parser-build time.
+    a non-``Path`` parameter raises ``YeetrError`` at parser-build time.
     """
 
     help: str | None = None
@@ -41,7 +41,7 @@ class Opt:
     Usage::
 
         from typing import Annotated
-        from yeeter import Opt
+        from yeetr import Opt
 
         def main(*, workers: Annotated[int, Opt(alias="-w", help="Workers")] = 4) -> None: ...
 

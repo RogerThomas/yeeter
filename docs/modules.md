@@ -1,8 +1,8 @@
 # API Reference
 
-Reference documentation for the public `yeeter` API.
+Reference documentation for the public `yeetr` API.
 
-::: yeeter
+::: yeetr
     options:
       show_root_heading: true
       show_source: false
