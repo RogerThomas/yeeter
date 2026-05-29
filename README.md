@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://rogerthomas.github.io/yeetr/">
-    <img src="https://rogerthomas.github.io/yeetr/assets/yeetr.png" alt="yeetr" width="500">
+    <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr.png" alt="yeetr" width="500">
   </a>
 </p>
 <p align="center">
@@ -38,7 +38,7 @@ CLI command: `yeet`
 
 ## Getting Started
 
-### Zero-boilerplate: the `yeet` script
+### Zero-boilerplate: just yeet it
 
 Installing `yeetr` also installs a `yeet` script that finds and runs a
 function in any Python file.
@@ -52,9 +52,14 @@ def main(thing: int, *, n: float = 0.1) -> None:
     print(thing, n)
 ```
 
+```bash
+yeet app.py 5 --n 0.2
 ```
-yeet file.py 5 --n 0.2
-```
+
+If `app.py` does not exist yet, `yeet` will scaffold a runnable Python
+script for you, mark it executable, and print the created path. Run the
+same command a second time, or call `./app.py` directly, and it will
+execute normally.
 
 The default function name is `main`. Pass a different one to pick another
 top-level function in the same file:
@@ -65,11 +70,11 @@ def main(...) -> None: ...
 def greet(name: str, *, loud: bool = False) -> None: ...
 ```
 
-```
-yeet file.py greet world --loud
+```bash
+yeet app.py greet world --loud
 ```
 
-`yeet file.py --help` prints the **target function's** help, not yeet's.
+`yeet app.py --help` prints the **target function's** help, not yeet's.
 `yeet` itself only has `yeet FILE [FUNC] [args...]`.
 
 You can still use the explicit `yeetr.run(main)` form when you prefer —
@@ -87,13 +92,43 @@ if __name__ == "__main__":
     yeetr.run(main)
 ```
 
-```
-yeet file.py 5 --n 0.2
+```bash
+yeet app.py 5 --n 0.2
 ```
 
 Note the bare `*` in the signature: parameters **before** it become
 positional CLI args, parameters **after** it become `--options`. That's
 the whole mapping — no decorators, no per-parameter annotations needed.
+
+---
+
+## Async Support
+
+`yeetr` supports async functions natively. Just make your `main` an `async def` and `yeet`
+will run it with `asyncio.run` or `uvloop.run` if [uvloop](https://github.com/MagicStack/uvloop)
+is installed.
+
+### Async
+
+```python
+async def main(name: str, *, loud: bool = False) -> None:
+    ...
+```
+
+```bash
+yeet app.py world --loud
+```
+
+If the function is a coroutine, its result is awaited via `asyncio.run`,
+or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
+optional `uvloop` extra is installed:
+
+```bash
+uv add "yeetr[uvloop]"
+```
+
+When `uvloop` is importable, yeetr uses it transparently — no code
+change required. Otherwise it falls back to the stdlib event loop.
 
 ---
 
@@ -125,77 +160,13 @@ def main(name: str, *, loud: bool = False) -> None:
 
 Then run it directly:
 
-```
+```bash
 chmod +x greet.py
 ./greet.py world --loud
 ```
 
 If you need a different entry function, keep the shebang simple and call
-`uv run yeet file.py other_func ...` explicitly instead.
-
----
-
-## Help And Error Messages
-
-On `--help` or a CLI parse error, yeetr renders the target function's
-arguments and options in the same readable Rich table layout.
-
-For example, this script:
-
-```python
-#!yeet
-from logging import getLogger
-from pathlib import Path
-from typing import Annotated, Literal
-
-from yeetr import Arg
-
-logger = getLogger("Tmp")
-
-type PDFPathArg = Annotated[Path, Arg(help="Path to the PDF file")]
-
-
-def main(
-    pdf_path: PDFPathArg = Path("./"),
-    *,
-    tol: float = 0.002,
-    mode: Literal["auto", "text", "vision"] = "auto",
-) -> None:
-    """Main entrypoint to process the PDF"""
-    logger.info(f"Processing PDF at: {pdf_path}, tol: {tol}, mode: {mode}")
-```
-
-produces help like this:
-
-<p align="center">
-  <img src="https://rogerthomas.github.io/yeetr/assets/yeetr-help.png" alt="yeetr help output" width="900">
-</p>
-
----
-
-## Function Signatures
-
-### Async
-
-```python
-async def main(name: str, *, loud: bool = False) -> None:
-    ...
-```
-
-```
-yeet file.py world --loud
-```
-
-If the function is a coroutine, its result is awaited via `asyncio.run`,
-or via [`uvloop.run`](https://github.com/MagicStack/uvloop) when the
-optional `uvloop` extra is installed:
-
-```
-uv add "yeetr[uvloop]"
-```
-
-When `uvloop` is importable, yeetr uses it transparently — no code
-change required. Otherwise it falls back to the stdlib event loop.
+`uv run yeet app.py other_func ...` explicitly instead.
 
 ---
 
@@ -211,8 +182,8 @@ def main(path: Path, *, output: Path | None = None) -> None:
     ...
 ```
 
-```
-yeet file.py input.pdf --output out.txt
+```bash
+yeet app.py input.pdf --output out.txt
 ```
 
 ---
@@ -227,9 +198,52 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
     ...
 ```
 
+```bash
+yeet app.py --format csv
 ```
-yeet file.py --format csv
+
+---
+
+### Enum choices
+
+```python
+from enum import StrEnum
+
+
+class Format(StrEnum):
+    JSON = "json"
+    CSV = "csv"
+
+
+def main(*, format: Format = Format.JSON) -> None:
+    ...
 ```
+
+```bash
+yeet app.py --format csv
+```
+
+Enums parse from their member values and the function receives the enum
+member (`Format.CSV` in the example above). Choice values are shown in
+help output and invalid values fail during argument parsing.
+
+---
+
+### Tuples
+
+```python
+def main(point: tuple[int, float], *, values: tuple[int, ...] = ()) -> None:
+    ...
+```
+
+```bash
+yeet app.py 1 2.5 --values 3 4 5
+```
+
+Fixed-width tuples such as `tuple[int, float]` consume exactly one CLI value
+per element and coerce each element according to its annotation. Variable
+tuples such as `tuple[int, ...]` consume one or more values unless they have
+a default, in which case zero values are allowed.
 
 ---
 
@@ -254,8 +268,8 @@ def main(
     ...
 ```
 
-```
-yeet file.py input.pdf -w 8
+```bash
+yeet app.py input.pdf -w 8
 ```
 
 `Arg` accepts `help`, `metavar`, `min`, and the path validators below. `Opt`
@@ -295,15 +309,16 @@ def main(*, workers: Annotated[int, Opt(envvar="WORKERS")] = 4) -> None:
     ...
 ```
 
-```
-WORKERS=8 yeet file.py        # workers == 8
-yeet file.py --workers 16     # workers == 16 (CLI wins)
-yeet file.py                  # workers == 4  (default)
+```bash
+WORKERS=8 yeet app.py         # workers == 8
+yeet app.py --workers 16      # workers == 16 (CLI wins)
+yeet app.py                   # workers == 4  (default)
 ```
 
 Env-var values are type-coerced just like CLI values. `bool` accepts
 `1/0/true/false/yes/no` (case-insensitive). `list[T]` splits on `os.pathsep`
-(`:` on POSIX, `;` on Windows). `Literal` choices are validated.
+(`:` on POSIX, `;` on Windows). `tuple[...]` also splits on `os.pathsep`.
+`Literal` and enum choices are validated.
 
 ---
 
@@ -362,8 +377,8 @@ def main(dst: Path, *sources: Path) -> None:
     ...
 ```
 
-```
-yeet file.py dst src1 src2 src3
+```bash
+yeet app.py dst src1 src2 src3
 ```
 
 By default `*args` accepts zero or more values (argparse `nargs="*"`). Use
@@ -399,13 +414,17 @@ the only way to attach per-parameter metadata that fully type-checks.
 - `T | None` / `Optional[T]` are accepted; treated as their inner type with
   `None` as default.
 - `list[T]` becomes a repeated option (`--tag a --tag b`).
+- `tuple[T, U]` consumes a fixed number of values.
+- `tuple[T, ...]` consumes a variable number of values.
+- `Enum` subclasses parse from member values and are rendered as choices.
 
 ---
 
 ## Supported Primitives
 
 `str`, `int`, `float`, `bool`, `pathlib.Path`, `typing.Literal[...]`,
-`T | None`, `list[T]`. Anything else raises a clear `YeetrError`.
+`enum.Enum` subclasses, `T | None`, `list[T]`, `tuple[T, U]`, and
+`tuple[T, ...]`. Anything else raises a clear `YeetrError`.
 
 ---
 
@@ -448,6 +467,44 @@ yeetr.run(main, should_setup_logging=False)
 ```python
 yeetr.run(main, argv=["5", "--n", "0.2"])
 ```
+
+---
+
+## Help And Error Messages
+
+On `--help` or a CLI parse error, yeetr renders the target function's
+arguments and options in the same readable Rich table layout.
+
+For example, this script:
+
+```python
+#!yeet
+from logging import getLogger
+from pathlib import Path
+from typing import Annotated, Literal
+
+from yeetr import Arg
+
+logger = getLogger("Tmp")
+
+type PDFPathArg = Annotated[Path, Arg(help="Path to the PDF file")]
+
+
+def main(
+    pdf_path: PDFPathArg = Path("./"),
+    *,
+    tol: float = 0.002,
+    mode: Literal["auto", "text", "vision"] = "auto",
+) -> None:
+    """Main entrypoint to process the PDF"""
+    logger.info(f"Processing PDF at: {pdf_path}, tol: {tol}, mode: {mode}")
+```
+
+produces help like this:
+
+<p align="center">
+  <img class="no-radius" src="assets/yeetr-help.png" alt="yeetr help output" width="900">
+</p>
 
 ---
 
@@ -509,15 +566,5 @@ To bump a release version manually, run `uv version <version>`.
 Install from PyPI with:
 
 ```bash
-pip install yeetr
-```
----
-
-### Development
-
-```
-uv sync
-uv run ruff check
-uv run pyright
-uv run pytest
+uv add yeetr
 ```
