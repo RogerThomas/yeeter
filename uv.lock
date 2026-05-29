@@ -971,7 +971,7 @@ wheels = [
 
 [[package]]
 name = "yeetr"
-version = "2026.5.26"
+version = "2026.5.29"
 source = { editable = "." }
 dependencies = [
     { name = "rich" },
