@@ -3,6 +3,7 @@
 # pylint: disable=import-outside-toplevel,missing-function-docstring,redefined-builtin
 
 import asyncio
+import enum
 import logging
 import stat
 from pathlib import Path
@@ -132,6 +133,125 @@ def test_literal_rejects_bad_choice() -> None:
 
     with pytest.raises(SystemExit):
         yeetr.run(main, argv=["--format", "xml"])
+
+
+class _Format(enum.StrEnum):
+    JSON = "json"
+    CSV = "csv"
+
+
+class _Level(enum.IntEnum):
+    LOW = 1
+    HIGH = 2
+
+
+def test_enum_option() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, format: _Format = _Format.JSON) -> None:
+        captured["format"] = format
+
+    yeetr.run(main, argv=["--format", "csv"])
+    assert captured == {"format": _Format.CSV}
+
+
+def test_enum_positional() -> None:
+    captured: dict[str, object] = {}
+
+    def main(level: _Level) -> None:
+        captured["level"] = level
+
+    yeetr.run(main, argv=["2"])
+    assert captured == {"level": _Level.HIGH}
+
+
+def test_enum_rejects_bad_choice() -> None:
+    def main(*, format: _Format = _Format.JSON) -> None:
+        del format
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["--format", "xml"])
+
+
+def test_enum_help_shows_choices() -> None:
+    from io import StringIO
+
+    from rich.console import Console
+
+    from yeetr._runner import _build_parser  # pyright: ignore[reportPrivateUsage]
+
+    def main(*, format: _Format = _Format.JSON) -> None:
+        del format
+
+    parser, _, _ = _build_parser(main, prog="app")
+    buf = StringIO()
+    console = Console(file=buf, force_terminal=False, width=200)
+    parser.print_help(file=console.file)
+    output = buf.getvalue()
+    assert "json" in output
+    assert "csv" in output
+
+
+def test_tuple_positional_fixed_width() -> None:
+    captured: dict[str, object] = {}
+
+    def main(point: tuple[int, float]) -> None:
+        captured["point"] = point
+
+    yeetr.run(main, argv=["1", "2.5"])
+    assert captured == {"point": (1, 2.5)}
+
+
+def test_tuple_option_fixed_width() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, point: tuple[int, float]) -> None:
+        captured["point"] = point
+
+    yeetr.run(main, argv=["--point", "1", "2.5"])
+    assert captured == {"point": (1, 2.5)}
+
+
+def test_tuple_option_variable_width() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, values: tuple[int, ...] = ()) -> None:
+        captured["values"] = values
+
+    yeetr.run(main, argv=["--values", "1", "2", "3"])
+    assert captured == {"values": (1, 2, 3)}
+
+
+def test_tuple_rejects_bad_value() -> None:
+    def main(point: tuple[int, float]) -> None:
+        del point
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["1", "bad"])
+
+
+def test_envvar_enum(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, format: Annotated[_Format, Opt(envvar="FMT")] = _Format.JSON) -> None:
+        captured["format"] = format
+
+    monkeypatch.setenv("FMT", "csv")
+    yeetr.run(main, argv=[])
+    assert captured == {"format": _Format.CSV}
+
+
+def test_envvar_tuple_splits_on_pathsep(monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    captured: dict[str, object] = {}
+
+    def main(*, point: Annotated[tuple[int, float], Opt(envvar="POINT")] = (0, 0.0)) -> None:
+        captured["point"] = point
+
+    monkeypatch.setenv("POINT", f"1{os.pathsep}2.5")
+    yeetr.run(main, argv=[])
+    assert captured == {"point": (1, 2.5)}
 
 
 def test_async_main() -> None:
