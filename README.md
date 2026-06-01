@@ -562,6 +562,7 @@ problem. Quick honest comparison so you can pick the right tool:
 | Executable shebang         | `#!yeet` or `#!uv run yeet` can make the script itself executable without extra wrapper code | No equivalent single-line signature-driven runner; still need a `typer.run(...)` or app entry point |
 | Arg vs. option mapping     | Uses Python's `*` separator: before `*` = positional args, after `*` = `--options` (no per-param annotation needed) | Decide per parameter via `typer.Argument(...)` / `typer.Option(...)` |
 | Per-param metadata         | `Annotated[T, Arg(...)]` / `Annotated[T, Opt(...)]`                    | `Annotated[T, typer.Argument(...)]` / `typer.Option(...)`          |
+| Pydantic models            | Optional integration: a lone `BaseModel` parameter expands into validated CLI options automatically | No built-in model expansion; expose options and construct the model manually |
 | Variadic positional args   | Native `*args: T` maps to a trailing variadic positional arg           | Use `list[T]` with `typer.Argument(...)`                           |
 | Boolean flags              | Default drives the flag: `= False` -> `--flag`, `= True` -> `--no-flag` | Pair of flags declared explicitly: `--flag / --no-flag`            |
 | Subcommands                | Not supported (single command per script)                              | First-class subcommands, command groups, nested apps               |
