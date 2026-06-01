@@ -5,6 +5,7 @@
 import argparse
 import asyncio
 import enum
+import importlib
 import inspect
 import logging
 import os
@@ -90,6 +91,19 @@ class _ParamInfo:  # pylint: disable=too-many-instance-attributes
 
 def _is_enum_type(target: Any) -> bool:
     return inspect.isclass(target) and issubclass(target, enum.Enum)
+
+
+def _pydantic_base_model() -> Any:
+    try:
+        module = importlib.import_module("pydantic")
+    except ImportError:
+        return None
+    return module.BaseModel
+
+
+def _is_pydantic_model_type(target: Any) -> bool:
+    base_model = _pydantic_base_model()
+    return base_model is not None and inspect.isclass(target) and issubclass(target, base_model)
 
 
 def _type_name(target: Any) -> str:
@@ -584,6 +598,44 @@ def _add_parameter(  # pylint: disable=too-many-locals
     return info
 
 
+def _pydantic_field_default(model_field: Any) -> Any:
+    if model_field.is_required():
+        return Parameter.empty
+    if model_field.default_factory is not None:
+        return model_field.default_factory()
+    return model_field.default
+
+
+def _pydantic_field_alias(model_field: Any) -> str | None:
+    alias = model_field.alias
+    if alias is None:
+        return None
+    if not isinstance(alias, str):
+        raise YeetrError("Pydantic field aliases must be strings.")
+    return f"-{alias}" if len(alias) == 1 else f"--{_snake_to_kebab(alias)}"
+
+
+def _add_pydantic_model(
+    parser: argparse.ArgumentParser,
+    model_type: Any,
+) -> list[_ParamInfo]:
+    infos: list[_ParamInfo] = []
+    for name, model_field in model_type.model_fields.items():
+        annotation = model_field.annotation
+        if annotation is None:
+            raise YeetrError(f"Pydantic field {name!r} is missing a type annotation.")
+        metadata = Opt(alias=_pydantic_field_alias(model_field), help=model_field.description)
+        annotated = typing.Annotated[annotation, metadata]
+        param = Parameter(
+            name,
+            kind=Parameter.KEYWORD_ONLY,
+            default=_pydantic_field_default(model_field),
+            annotation=annotated,
+        )
+        infos.append(_add_parameter(parser, param))
+    return infos
+
+
 def _split_flags_for_display(
     param_name: str,
     flags: list[str],
@@ -842,7 +894,17 @@ def _build_parser(
         formatter_class=RichHelpFormatter,
     )
     infos: list[_ParamInfo] = []
+    pydantic_params = [
+        param
+        for param in sig.parameters.values()
+        if param.annotation is not Parameter.empty and _is_pydantic_model_type(param.annotation)
+    ]
+    if pydantic_params and len(sig.parameters) != 1:
+        raise YeetrError("A Pydantic model must be the function's only parameter.")
     for param in sig.parameters.values():
+        if param in pydantic_params:
+            infos.extend(_add_pydantic_model(parser, param.annotation))
+            continue
         if param.kind is Parameter.VAR_KEYWORD:
             raise YeetrError(
                 f"Variadic keyword parameter **{param.name} is not supported.",
@@ -1023,6 +1085,24 @@ def _build_call_args(
     return args, kwargs
 
 
+def _normalize_pydantic_model(
+    parser: argparse.ArgumentParser,
+    sig: Signature,
+    namespace: argparse.Namespace,
+) -> None:
+    for name, param in sig.parameters.items():
+        model_type = param.annotation
+        if not _is_pydantic_model_type(model_type):
+            continue
+        values = {
+            field_name: getattr(namespace, field_name) for field_name in model_type.model_fields
+        }
+        try:
+            setattr(namespace, name, model_type.model_validate(values, by_name=True))
+        except ValueError as exc:
+            parser.error(str(exc))
+
+
 def _normalize_parsed_values(
     parser: argparse.ArgumentParser,
     namespace: argparse.Namespace,
@@ -1130,6 +1210,7 @@ def run[T](
     namespace = parser.parse_args(raw_argv)
     _normalize_parsed_values(parser, namespace, infos)
     _resolve_envvars(parser, namespace, infos)
+    _normalize_pydantic_model(parser, sig, namespace)
     if should_setup_logging:
         _setup_logging(namespace)
     call_args, call_kwargs = _build_call_args(sig, namespace)

@@ -1,6 +1,6 @@
 """Tests for yeetr's signature-driven CLI runner."""
 
-# pylint: disable=import-outside-toplevel,missing-function-docstring,redefined-builtin
+# pylint: disable=import-outside-toplevel,missing-class-docstring,missing-function-docstring,redefined-builtin,too-many-lines
 
 import asyncio
 import enum
@@ -252,6 +252,87 @@ def test_envvar_tuple_splits_on_pathsep(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv("POINT", f"1{os.pathsep}2.5")
     yeetr.run(main, argv=[])
     assert captured == {"point": (1, 2.5)}
+
+
+def test_pydantic_model_expands_to_options() -> None:
+    from pydantic import BaseModel, Field
+
+    captured: dict[str, object] = {}
+
+    class Request(BaseModel):
+        name: str = Field(description="Name to greet", default="world", alias="n")
+        tol: float = Field(description="Tolerance", default=0.5, alias="t")
+
+    def main(request: Request) -> None:
+        captured["request"] = request
+
+    yeetr.run(main, argv=["-n", "name", "--tol", "0.25"])
+    assert captured == {"request": Request(n="name", t=0.25)}
+
+
+def test_pydantic_model_uses_field_defaults() -> None:
+    from pydantic import BaseModel
+
+    captured: dict[str, object] = {}
+
+    class Request(BaseModel):
+        name: str = "world"
+
+    def main(request: Request) -> None:
+        captured["request"] = request
+
+    yeetr.run(main, argv=[])
+    assert captured == {"request": Request(name="world")}
+
+
+def test_pydantic_model_validates_fields() -> None:
+    from pydantic import BaseModel, Field
+
+    class Request(BaseModel):
+        count: int = Field(gt=0)
+
+    def main(request: Request) -> None:
+        del request
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["--count", "0"])
+
+
+def test_pydantic_model_help_uses_field_metadata() -> None:
+    from io import StringIO
+
+    from pydantic import BaseModel, Field
+    from rich.console import Console
+
+    from yeetr._runner import _build_parser  # pyright: ignore[reportPrivateUsage]
+
+    class Request(BaseModel):
+        name: str = Field(description="Name to greet", default="world", alias="n")
+
+    def main(request: Request) -> None:
+        del request
+
+    parser, _, _ = _build_parser(main, prog="app")
+    buf = StringIO()
+    console = Console(file=buf, force_terminal=False, width=200)
+    parser.print_help(file=console.file)
+    output = buf.getvalue()
+    assert "--name" in output
+    assert "-n" in output
+    assert "Name to greet" in output
+
+
+def test_pydantic_model_must_be_only_parameter() -> None:
+    from pydantic import BaseModel
+
+    class Request(BaseModel):
+        name: str
+
+    def main(request: Request, other: str) -> None:
+        del request, other
+
+    with pytest.raises(YeetrError, match="only parameter"):
+        yeetr.run(main, argv=[])
 
 
 def test_async_main() -> None:

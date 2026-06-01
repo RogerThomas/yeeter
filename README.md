@@ -247,6 +247,41 @@ a default, in which case zero values are allowed.
 
 ---
 
+### Pydantic models
+
+Install the optional Pydantic integration:
+
+```bash
+uv add "yeetr[pydantic]"
+```
+
+A function with one Pydantic model parameter automatically exposes the model
+fields as CLI options and receives a validated model instance:
+
+```python
+from pydantic import BaseModel, Field
+
+
+class Request(BaseModel):
+    name: str = Field(description="Name to greet", default="world", alias="n")
+    tol: float = Field(description="Tolerance", default=0.5, alias="t")
+
+
+def main(request: Request) -> None:
+    ...
+```
+
+```bash
+yeet app.py -n person --tol 0.25
+```
+
+Field descriptions become help text. Field aliases become additional CLI
+flags (`alias="n"` becomes `-n`; longer aliases become `--alias`). Pydantic
+validation runs after CLI parsing. The model must be the function's only
+parameter.
+
+---
+
 ## Parameter Metadata
 
 ### `Arg` and `Opt`
@@ -424,7 +459,9 @@ the only way to attach per-parameter metadata that fully type-checks.
 
 `str`, `int`, `float`, `bool`, `pathlib.Path`, `typing.Literal[...]`,
 `enum.Enum` subclasses, `T | None`, `list[T]`, `tuple[T, U]`, and
-`tuple[T, ...]`. Anything else raises a clear `YeetrError`.
+`tuple[T, ...]`. With the `pydantic` extra installed, a lone
+`pydantic.BaseModel` parameter is also supported. Anything else raises a
+clear `YeetrError`.
 
 ---
 
