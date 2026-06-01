@@ -299,7 +299,7 @@ from yeetr import Arg, Opt
 def main(
     path: Annotated[Path, Arg(help="Input file")],
     *,
-    workers: Annotated[int, Opt(alias="-w", help="Worker count")] = 4,
+    workers: Annotated[int, Opt(alias="w", help="Worker count")] = 4,
 ) -> None:
     ...
 ```
@@ -313,9 +313,26 @@ accepts `alias`, `aliases`, `help`, `metavar`, `envvar`, `hidden`, and the
 path validators below. Mixing them (e.g. `Opt` on a positional or `Arg` on a
 keyword-only parameter) raises a clear `YeetrError`.
 
-Option aliases accept either shorthand or explicit CLI spelling:
-`Opt(alias="w")` and `Opt(alias="-w")` both become `-w`; `Opt(alias="who")`
-and `Opt(alias="--who")` both become `--who`.
+Prefer aliases without a `-` prefix. A single-letter alias automatically
+becomes a short option (`alias="w"` becomes `-w`). An alias with two or more
+letters automatically becomes a long option (`alias="workers"` becomes
+`--workers`). Explicit CLI spelling such as `alias="-w"` or `alias="--workers"`
+is accepted when needed.
+
+For one alias, prefer `alias=`:
+
+```python
+Opt(alias="w")
+```
+
+For multiple aliases, omit `alias=` and use only `aliases=`:
+
+```python
+Opt(aliases=("w", "workers", "worker-count"))
+```
+
+This exposes `-w`, `--workers`, and `--worker-count`, in addition to the
+generated option based on the parameter name.
 
 You can also define aliases once and reuse them:
 
@@ -326,7 +343,7 @@ from yeetr import Arg, Opt
 
 
 type InputPath = Annotated[Path, Arg(help="Input file")]
-type WorkerCount = Annotated[int, Opt(alias="-w", help="Worker count")]
+type WorkerCount = Annotated[int, Opt(alias="w", help="Worker count")]
 
 
 def main(path: InputPath, *, workers: WorkerCount = 4) -> None:
