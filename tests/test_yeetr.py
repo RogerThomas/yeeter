@@ -270,6 +270,36 @@ def test_pydantic_model_expands_to_options() -> None:
     assert captured == {"request": Request(n="name", t=0.25)}
 
 
+def test_pydantic_model_accepts_prefixed_field_alias() -> None:
+    from pydantic import BaseModel, Field
+
+    captured: dict[str, object] = {}
+
+    class Request(BaseModel):
+        name: str = Field(default="world", alias="-n")
+
+    def main(request: Request) -> None:
+        captured["request"] = request
+
+    yeetr.run(main, argv=["-n", "name"])
+    assert captured == {"request": Request(**{"-n": "name"})}
+
+
+def test_pydantic_model_accepts_prefixed_long_field_alias() -> None:
+    from pydantic import BaseModel, Field
+
+    captured: dict[str, object] = {}
+
+    class Request(BaseModel):
+        name: str = Field(default="world", alias="--who")
+
+    def main(request: Request) -> None:
+        captured["request"] = request
+
+    yeetr.run(main, argv=["--who", "name"])
+    assert captured == {"request": Request(**{"--who": "name"})}
+
+
 def test_pydantic_model_uses_field_defaults() -> None:
     from pydantic import BaseModel
 
@@ -384,6 +414,29 @@ def test_opt_alias_and_help() -> None:
 
     yeetr.run(main, argv=["--workers", "3"])
     assert captured == {"workers": 3}
+
+
+def test_opt_alias_accepts_shorthand() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, workers: Annotated[int, Opt(alias="w")] = 4) -> None:
+        captured["workers"] = workers
+
+    yeetr.run(main, argv=["-w", "8"])
+    assert captured == {"workers": 8}
+
+
+def test_opt_aliases_accept_long_shorthand_and_explicit_spelling() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, name: Annotated[str, Opt(aliases=("who", "--person"))] = "world") -> None:
+        captured["name"] = name
+
+    yeetr.run(main, argv=["--who", "name"])
+    assert captured == {"name": "name"}
+
+    yeetr.run(main, argv=["--person", "person"])
+    assert captured == {"name": "person"}
 
 
 def test_opt_no_default_required() -> None:

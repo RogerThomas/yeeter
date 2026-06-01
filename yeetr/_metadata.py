@@ -43,11 +43,14 @@ class Opt:
         from typing import Annotated
         from yeetr import Opt
 
-        def main(*, workers: Annotated[int, Opt(alias="-w", help="Workers")] = 4) -> None: ...
+        def main(*, workers: Annotated[int, Opt(alias="w", help="Workers")] = 4) -> None: ...
 
     This is the only Pyright-strict-clean way to attach per-parameter CLI
     metadata in Python's type system: calls are only permitted inside the
     metadata slot of ``Annotated``.
+
+    ``alias`` and ``aliases`` accept either shorthand (``"w"`` / ``"who"``)
+    or explicit CLI spelling (``"-w"`` / ``"--who"``).
 
     ``envvar`` provides a fallback value from the environment when the flag
     is not given on the command line. Precedence: explicit CLI > env var >

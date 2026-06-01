@@ -606,13 +606,19 @@ def _pydantic_field_default(model_field: Any) -> Any:
     return model_field.default
 
 
+def _normalize_opt_alias(alias: str) -> str:
+    if alias.startswith("-"):
+        return alias
+    return f"-{alias}" if len(alias) == 1 else f"--{_snake_to_kebab(alias)}"
+
+
 def _pydantic_field_alias(model_field: Any) -> str | None:
     alias = model_field.alias
     if alias is None:
         return None
     if not isinstance(alias, str):
         raise YeetrError("Pydantic field aliases must be strings.")
-    return f"-{alias}" if len(alias) == 1 else f"--{_snake_to_kebab(alias)}"
+    return _normalize_opt_alias(alias)
 
 
 def _add_pydantic_model(
@@ -656,6 +662,7 @@ def _build_flags(param_name: str, metadata: Opt | None) -> list[str]:
         if metadata.alias:
             extras.append(metadata.alias)
         extras.extend(metadata.aliases)
+    extras = [_normalize_opt_alias(alias) for alias in extras]
     shorts = [f for f in extras if f.startswith("-") and not f.startswith("--")]
     longs = [f for f in extras if f.startswith("--")]
     return [*shorts, long_flag, *longs]

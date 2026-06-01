@@ -277,6 +277,7 @@ yeet app.py -n person --tol 0.25
 
 Field descriptions become help text. Field aliases become additional CLI
 flags (`alias="n"` becomes `-n`; longer aliases become `--alias`). Pydantic
+aliases may also include their CLI prefix explicitly (`alias="-n"`). Pydantic
 validation runs after CLI parsing. The model must be the function's only
 parameter.
 
@@ -311,6 +312,10 @@ yeet app.py input.pdf -w 8
 accepts `alias`, `aliases`, `help`, `metavar`, `envvar`, `hidden`, and the
 path validators below. Mixing them (e.g. `Opt` on a positional or `Arg` on a
 keyword-only parameter) raises a clear `YeetrError`.
+
+Option aliases accept either shorthand or explicit CLI spelling:
+`Opt(alias="w")` and `Opt(alias="-w")` both become `-w`; `Opt(alias="who")`
+and `Opt(alias="--who")` both become `--who`.
 
 You can also define aliases once and reuse them:
 
