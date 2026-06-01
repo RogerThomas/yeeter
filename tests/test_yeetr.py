@@ -1,6 +1,6 @@
 """Tests for yeetr's signature-driven CLI runner."""
 
-# pylint: disable=import-outside-toplevel,missing-class-docstring,missing-function-docstring,redefined-builtin,too-many-lines
+# pylint: disable=import-outside-toplevel,missing-class-docstring,missing-function-docstring,redefined-builtin,too-few-public-methods,too-many-lines
 
 import asyncio
 import enum

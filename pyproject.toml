@@ -36,6 +36,7 @@ dev = [
     "deptry>=0.25.1",
     "pyright>=1.1.380",
     "pytest-cov>=7.0.0",
+    "pydantic>=2.13.4",
     "ruff>=0.15.7",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
@@ -140,3 +141,6 @@ max-args = 10
 max-positional-arguments = 10
 max-locals = 20
 max-attributes = 20
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["pydantic"]
