@@ -36,53 +36,6 @@ CLI command: `yeet`
 
 ---
 
-## Bundled Args
-
-Sometimes you want to bundle all your args into a single neat object. For
-that, use a `dataclass` or `NamedTuple` and make your function accept one
-parameter:
-
-```python
-from dataclasses import dataclass
-from typing import Annotated
-from yeetr import Opt
-
-
-@dataclass(slots=True)
-class Args:
-    name: Annotated[str, Opt(alias="n", help="The name to greet")] = "World"
-    tolerance: Annotated[float, Opt(alias="t", help="Tolerance level")] = 0.5
-
-
-def main(args: Args) -> None:
-    print(args)
-```
-
-```bash
-yeet app.py -n Alice -t 0.75
-```
-
-The same pattern works with `NamedTuple`:
-
-```python
-from typing import Annotated, NamedTuple
-from yeetr import Opt
-
-
-class Args(NamedTuple):
-    name: Annotated[str, Opt(alias="n", help="The name to greet")] = "World"
-    tolerance: Annotated[float, Opt(alias="t", help="Tolerance level")] = 0.5
-
-
-def main(args: Args) -> None:
-    print(args)
-```
-
-Fields annotated with `Arg` become positional CLI args. Fields annotated with
-`Opt`, and fields without yeetr metadata, become `--options`.
-
----
-
 ## Getting Started
 
 ### Zero-boilerplate: just yeet it
@@ -339,6 +292,53 @@ type WorkerCount = Annotated[int, Opt(alias="-w", help="Worker count")]
 def main(path: InputPath, *, workers: WorkerCount = 4) -> None:
     ...
 ```
+
+---
+
+### Bundled args
+
+Sometimes you want to bundle all your args into a single neat object. For
+that, use a `dataclass` or `NamedTuple` and make your function accept one
+parameter:
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+from yeetr import Opt
+
+
+@dataclass(slots=True)
+class Args:
+    name: Annotated[str, Opt(alias="n", help="The name to greet")] = "World"
+    tolerance: Annotated[float, Opt(alias="t", help="Tolerance level")] = 0.5
+
+
+def main(args: Args) -> None:
+    print(args)
+```
+
+```bash
+yeet app.py -n Alice -t 0.75
+```
+
+The same pattern works with `NamedTuple`:
+
+```python
+from typing import Annotated, NamedTuple
+from yeetr import Opt
+
+
+class Args(NamedTuple):
+    name: Annotated[str, Opt(alias="n", help="The name to greet")] = "World"
+    tolerance: Annotated[float, Opt(alias="t", help="Tolerance level")] = 0.5
+
+
+def main(args: Args) -> None:
+    print(args)
+```
+
+Fields annotated with `Arg` become positional CLI args. Fields annotated with
+`Opt`, and fields without yeetr metadata, become `--options`.
 
 ---
 
