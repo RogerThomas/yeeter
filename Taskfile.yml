@@ -4,7 +4,8 @@ tasks:
   install:
     desc: Install the virtual environment and install the pre-commit hooks
     cmds:
-      - 'echo "🚀 Creating virtual environment using uv"'
+      - cmd: 'echo "🚀 Creating virtual environment using uv"'
+        silent: true
       - uv sync
       - uv run prek install
 
@@ -15,15 +16,18 @@ tasks:
   check:
     desc: Run code quality tools
     cmds:
-      - 'echo "🚀 Checking lock file consistency with ''pyproject.toml''"'
-      - uv lock --locked
-      - 'echo "🚀 Linting code: Running pre-commit"'
+      - cmd: 'echo "🚀 Checking lock file consistency with ''pyproject.toml''"'
+        silent: true
+      - uv --quiet lock --locked
+      - cmd: 'echo "🚀 Linting code: Running pre-commit"'
+        silent: true
       - uv run prek run -a
 
   test:
     desc: Test the code with pytest
     cmds:
-      - 'echo "🚀 Testing code: Running pytest"'
+      - cmd: 'echo "🚀 Testing code: Running pytest"'
+        silent: true
       - uv run pytest --cov --cov-config=pyproject.toml --cov-report=xml
 
   build:
@@ -36,13 +40,15 @@ tasks:
   clean-build:
     desc: Clean build artifacts
     cmds:
-      - 'echo "🚀 Removing build artifacts"'
+      - cmd: echo "🚀 Removing build artifacts"
+        silent: true
       - 'uv run python -c "import shutil; import os; shutil.rmtree(''dist'') if os.path.exists(''dist'') else None"'
 
   publish:
     desc: Publish a release to PyPI
     cmds:
-      - 'echo "🚀 Publishing."'
+      - cmd: 'echo "🚀 Publishing."'
+        silent: true
       - uvx twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
 
   build-and-publish:
