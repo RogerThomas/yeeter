@@ -16,6 +16,8 @@
 - [5. Almost never test private methods/functions](#5-almost-never-test-private-methodsfunctions)
 - [6. Use `@dataclass(slots=True)` for internal DTOs](#6-use-dataclassslotstrue-for-internal-dtos)
 - [7. Almost never use globals](#7-almost-never-use-globals)
+- [8. Prefer operator forms for primitive containers](#8-prefer-operator-forms-for-primitive-containers)
+- [9. Use real type expressions in `typing.cast`](#9-use-real-type-expressions-in-typingcast)
 
 <!-- mdformat-toc end -->
 
@@ -250,3 +252,43 @@ def test_something():
     # implicitly depends on _PARSED_DOCUMENT
     ...
 ```
+
+## 8. Prefer operator forms for primitive containers<a name="8-prefer-operator-forms-for-primitive-containers"></a>
+
+When combining primitive containers such as lists, sets, and dictionaries, prefer the operator form over the method form when the meaning is equivalent.
+
+**Good**
+
+```Python
+items += more_items
+seen |= new_items
+config |= overrides
+```
+
+**Bad**
+
+```Python
+items.extend(more_items)
+seen.update(new_items)
+config.update(overrides)
+```
+
+This keeps container-combination code compact and visually consistent with Python's literal syntax. Keep using methods when they communicate a different operation more clearly, such as `items.append(item)` for adding one element or `mapping[key] = value` for setting one key.
+
+## 9. Use real type expressions in `typing.cast`<a name="9-use-real-type-expressions-in-typingcast"></a>
+
+When calling `typing.cast`, pass the actual type expression rather than a string literal, unless avoiding a runtime import or a true forward reference is necessary.
+
+**Good**
+
+```Python
+value = typing.cast(list[str], raw)
+```
+
+**Bad**
+
+```Python
+value = typing.cast("list[str]", raw)
+```
+
+This keeps casts aligned with normal Python type syntax and avoids hiding misspelled or stale type expressions inside strings.

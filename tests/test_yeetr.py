@@ -1,13 +1,14 @@
 """Tests for yeetr's signature-driven CLI runner."""
 
-# pylint: disable=import-outside-toplevel,missing-function-docstring,redefined-builtin
+# pylint: disable=import-outside-toplevel,missing-class-docstring,missing-function-docstring,redefined-builtin,too-many-lines
 
 import asyncio
 import enum
 import logging
 import stat
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal, NamedTuple
 
 import pytest
 from rich.logging import RichHandler
@@ -305,6 +306,26 @@ def test_opt_alias_and_help() -> None:
     assert captured == {"workers": 3}
 
 
+def test_opt_bare_aliases_are_normalized() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, name: Annotated[str, Opt(alias="n")] = "default") -> None:
+        captured["name"] = name
+
+    yeetr.run(main, argv=["-n", "name"])
+    assert captured == {"name": "name"}
+
+
+def test_opt_bare_long_alias_is_normalized() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, name: Annotated[str, Opt(alias="who")] = "default") -> None:
+        captured["name"] = name
+
+    yeetr.run(main, argv=["--who", "name"])
+    assert captured == {"name": "name"}
+
+
 def test_opt_no_default_required() -> None:
     captured: dict[str, object] = {}
 
@@ -316,6 +337,84 @@ def test_opt_no_default_required() -> None:
 
     with pytest.raises(SystemExit):
         yeetr.run(main, argv=[])
+
+
+def test_dataclass_parameter_builds_instance_from_options() -> None:
+    @dataclass(slots=True)
+    class Args:
+        name: Annotated[str, Opt(alias="n", help="Name")] = "default"
+        tolerance: Annotated[float, Opt(aliases=("t", "tolerance"), help="Tolerance")] = 0.5
+
+    captured: dict[str, object] = {}
+
+    def main(args: Args) -> None:
+        captured["args"] = args
+
+    yeetr.run(main, argv=["-n", "name", "-t", "0.75"])
+    assert captured == {"args": Args(name="name", tolerance=0.75)}
+
+    yeetr.run(main, argv=["--tolerance", "0.25"])
+    assert captured == {"args": Args(name="default", tolerance=0.25)}
+
+
+def test_dataclass_parameter_supports_positional_arg_fields() -> None:
+    @dataclass(slots=True)
+    class Args:
+        path: Annotated[Path, Arg(help="Path")]
+        workers: Annotated[int, Opt(alias="w")] = 4
+
+    captured: dict[str, object] = {}
+
+    def main(args: Args) -> None:
+        captured["args"] = args
+
+    yeetr.run(main, argv=["path", "-w", "8"])
+    assert captured == {"args": Args(path=Path("path"), workers=8)}
+
+
+def test_dataclass_parameter_uses_unmarked_fields_as_options() -> None:
+    @dataclass(slots=True)
+    class Args:
+        count: int
+
+    captured: dict[str, object] = {}
+
+    def main(args: Args) -> None:
+        captured["args"] = args
+
+    yeetr.run(main, argv=["--count", "5"])
+    assert captured == {"args": Args(count=5)}
+
+
+def test_named_tuple_parameter_builds_instance_from_options() -> None:
+    class Args(NamedTuple):
+        name: Annotated[str, Opt(alias="n", help="Name")] = "default"
+        tolerance: Annotated[float, Opt(aliases=("t", "tol"), help="Tolerance")] = 0.5
+
+    captured: dict[str, object] = {}
+
+    def main(args: Args) -> None:
+        captured["args"] = args
+
+    yeetr.run(main, argv=["-n", "name", "-t", "0.75"])
+    assert captured == {"args": Args(name="name", tolerance=0.75)}
+
+    yeetr.run(main, argv=["--tol", "0.25"])
+    assert captured == {"args": Args(name="default", tolerance=0.25)}
+
+
+def test_named_tuple_parameter_supports_positional_arg_fields() -> None:
+    class Args(NamedTuple):
+        path: Annotated[Path, Arg(help="Path")]
+        workers: Annotated[int, Opt(alias="w")] = 4
+
+    captured: dict[str, object] = {}
+
+    def main(args: Args) -> None:
+        captured["args"] = args
+
+    yeetr.run(main, argv=["path", "-w", "8"])
+    assert captured == {"args": Args(path=Path("path"), workers=8)}
 
 
 def test_arg_on_positional() -> None:
