@@ -36,6 +36,53 @@ CLI command: `yeet`
 
 ---
 
+## Bundled Args
+
+Sometimes you want to bundle all your args into a single neat object. For
+that, use a `dataclass` or `NamedTuple` and make your function accept one
+parameter:
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+from yeetr import Opt
+
+
+@dataclass(slots=True)
+class Args:
+    name: Annotated[str, Opt(alias="n", help="The name to greet")] = "World"
+    tolerance: Annotated[float, Opt(alias="t", help="Tolerance level")] = 0.5
+
+
+def main(args: Args) -> None:
+    print(args)
+```
+
+```bash
+yeet app.py -n Alice -t 0.75
+```
+
+The same pattern works with `NamedTuple`:
+
+```python
+from typing import Annotated, NamedTuple
+from yeetr import Opt
+
+
+class Args(NamedTuple):
+    name: Annotated[str, Opt(alias="n", help="The name to greet")] = "World"
+    tolerance: Annotated[float, Opt(alias="t", help="Tolerance level")] = 0.5
+
+
+def main(args: Args) -> None:
+    print(args)
+```
+
+Fields annotated with `Arg` become positional CLI args. Fields annotated with
+`Opt`, and fields without yeetr metadata, become `--options`.
+
+---
+
 ## Getting Started
 
 ### Zero-boilerplate: just yeet it
@@ -525,6 +572,7 @@ problem. Quick honest comparison so you can pick the right tool:
 | Executable shebang         | `#!yeet` or `#!uv run yeet` can make the script itself executable without extra wrapper code | No equivalent single-line signature-driven runner; still need a `typer.run(...)` or app entry point |
 | Arg vs. option mapping     | Uses Python's `*` separator: before `*` = positional args, after `*` = `--options` (no per-param annotation needed) | Decide per parameter via `typer.Argument(...)` / `typer.Option(...)` |
 | Per-param metadata         | `Annotated[T, Arg(...)]` / `Annotated[T, Opt(...)]`                    | `Annotated[T, typer.Argument(...)]` / `typer.Option(...)`          |
+| Structured arg object      | Accept one `dataclass` or `NamedTuple`; fields become the CLI and the function receives the object | Declare command params individually, then construct your object inside the command |
 | Variadic positional args   | Native `*args: T` maps to a trailing variadic positional arg           | Use `list[T]` with `typer.Argument(...)`                           |
 | Boolean flags              | Default drives the flag: `= False` -> `--flag`, `= True` -> `--no-flag` | Pair of flags declared explicitly: `--flag / --no-flag`            |
 | Subcommands                | Not supported (single command per script)                              | First-class subcommands, command groups, nested apps               |

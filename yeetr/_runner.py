@@ -11,7 +11,7 @@ import os
 import sys
 import types
 import typing
-from dataclasses import dataclass, field
+from dataclasses import MISSING, dataclass, field, fields, is_dataclass
 from inspect import Parameter, Signature
 from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
@@ -86,10 +86,21 @@ class _ParamInfo:  # pylint: disable=too-many-instance-attributes
     path_checks: _PathChecks = field(default_factory=_PathChecks)
     has_default: bool = False
     default: Any = None
+    parent_name: str | None = None
+    parent_type: Any = None
 
 
 def _is_enum_type(target: Any) -> bool:
     return inspect.isclass(target) and issubclass(target, enum.Enum)
+
+
+def _is_dataclass_type(target: Any) -> bool:
+    return inspect.isclass(target) and is_dataclass(target)
+
+
+def _is_named_tuple_type(target: Any) -> bool:
+    fields_attr = getattr(target, "_fields", None)
+    return inspect.isclass(target) and issubclass(target, tuple) and isinstance(fields_attr, tuple)
 
 
 def _type_name(target: Any) -> str:
@@ -150,10 +161,10 @@ def _format_default(value: Any) -> str:
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, list):
-        items = typing.cast("list[object]", value)
+        items = typing.cast(list[object], value)
         return f"[{', '.join(repr(item) for item in items)}]" if items else "[]"
     if isinstance(value, tuple):
-        items = typing.cast("tuple[object, ...]", value)
+        items = typing.cast(tuple[object, ...], value)
         return f"({', '.join(repr(item) for item in items)})" if items else "()"
     if isinstance(value, enum.Enum):
         return repr(value.value)
@@ -236,6 +247,53 @@ def _unwrap_annotated(annotation: Any) -> tuple[Any, Arg | Opt | None]:
         inner_base, inner_metadata = _unwrap_annotated(base)
         return inner_base, _merge_metadata(metadata, inner_metadata)
     return annotation, metadata
+
+
+def _field_default(field_info: Any) -> tuple[bool, Any]:
+    if field_info.default is not MISSING:
+        return True, field_info.default
+    if field_info.default_factory is not MISSING:
+        return True, field_info.default_factory()
+    return False, None
+
+
+def _dataclass_type_from(annotation: Any) -> Any | None:
+    base, _ = _unwrap_annotated(annotation)
+    return base if _is_dataclass_type(base) else None
+
+
+def _named_tuple_type_from(annotation: Any) -> Any | None:
+    base, _ = _unwrap_annotated(annotation)
+    return base if _is_named_tuple_type(base) else None
+
+
+def _synthetic_parameter_for_field(dataclass_type: Any, field_info: Any) -> Parameter:
+    type_hints = typing.get_type_hints(dataclass_type, include_extras=True)
+    annotation = type_hints[field_info.name]
+    _, metadata = _unwrap_annotated(annotation)
+    has_default, default = _field_default(field_info)
+    kind = Parameter.POSITIONAL_OR_KEYWORD if isinstance(metadata, Arg) else Parameter.KEYWORD_ONLY
+    return Parameter(
+        field_info.name,
+        kind,
+        default=default if has_default else Parameter.empty,
+        annotation=annotation,
+    )
+
+
+def _synthetic_parameter_for_named_tuple_field(named_tuple_type: Any, field_name: str) -> Parameter:
+    type_hints = typing.get_type_hints(named_tuple_type, include_extras=True)
+    annotation = type_hints[field_name]
+    _, metadata = _unwrap_annotated(annotation)
+    field_defaults = typing.cast(dict[str, Any], vars(named_tuple_type)["_field_defaults"])
+    has_default = field_name in field_defaults
+    kind = Parameter.POSITIONAL_OR_KEYWORD if isinstance(metadata, Arg) else Parameter.KEYWORD_ONLY
+    return Parameter(
+        field_name,
+        kind,
+        default=field_defaults[field_name] if has_default else Parameter.empty,
+        annotation=annotation,
+    )
 
 
 def _path_checks_from(metadata: Arg | Opt | None) -> _PathChecks:
@@ -350,10 +408,10 @@ def _coerce_tuple_value(
     path_checks: _PathChecks,
 ) -> tuple[Any, ...]:
     if isinstance(raw, tuple):
-        return typing.cast("tuple[Any, ...]", raw)
+        return typing.cast(tuple[Any, ...], raw)
     if not isinstance(raw, list):
         raise argparse.ArgumentTypeError(f"invalid tuple value for {param_name!r}: {raw!r}")
-    raw_values = typing.cast("list[str]", raw)
+    raw_values = typing.cast(list[str], raw)
 
     if _is_variable_tuple(effective):
         (inner_t,) = _tuple_inner_types(effective)
@@ -602,11 +660,26 @@ def _build_flags(param_name: str, metadata: Opt | None) -> list[str]:
     extras: list[str] = []
     if metadata is not None:
         if metadata.alias:
-            extras.append(metadata.alias)
-        extras.extend(metadata.aliases)
+            extras.append(_normalize_flag_alias(metadata.alias))
+        extras += (_normalize_flag_alias(alias) for alias in metadata.aliases)
     shorts = [f for f in extras if f.startswith("-") and not f.startswith("--")]
     longs = [f for f in extras if f.startswith("--")]
-    return [*shorts, long_flag, *longs]
+    return _unique_flags([*shorts, long_flag, *longs])
+
+
+def _normalize_flag_alias(alias: str) -> str:
+    if alias.startswith("-"):
+        return alias
+    prefix = "-" if len(alias) == 1 else "--"
+    return f"{prefix}{_snake_to_kebab(alias)}"
+
+
+def _unique_flags(flags: list[str]) -> list[str]:
+    unique: list[str] = []
+    for flag in flags:
+        if flag not in unique:
+            unique.append(flag)
+    return unique
 
 
 def _add_option(  # pylint: disable=too-many-arguments,too-many-branches,too-many-locals
@@ -828,6 +901,42 @@ def _add_positional(  # pylint: disable=too-many-arguments
     parser.add_argument(dest, **kwargs)
 
 
+def _add_dataclass_parameter(
+    parser: argparse.ArgumentParser,
+    param: Parameter,
+    dataclass_type: Any,
+) -> list[_ParamInfo]:
+    infos: list[_ParamInfo] = []
+    for field_info in fields(dataclass_type):
+        if not field_info.init:
+            continue
+        field_param = _synthetic_parameter_for_field(dataclass_type, field_info)
+        info = _add_parameter(parser, field_param)
+        info.parent_name = param.name
+        info.parent_type = dataclass_type
+        infos.append(info)
+    if not infos:
+        raise YeetrError(f"Dataclass parameter {param.name!r} has no init fields.")
+    return infos
+
+
+def _add_named_tuple_parameter(
+    parser: argparse.ArgumentParser,
+    param: Parameter,
+    named_tuple_type: Any,
+) -> list[_ParamInfo]:
+    infos: list[_ParamInfo] = []
+    for field_name in named_tuple_type._fields:
+        field_param = _synthetic_parameter_for_named_tuple_field(named_tuple_type, field_name)
+        info = _add_parameter(parser, field_param)
+        info.parent_name = param.name
+        info.parent_type = named_tuple_type
+        infos.append(info)
+    if not infos:
+        raise YeetrError(f"NamedTuple parameter {param.name!r} has no fields.")
+    return infos
+
+
 def _build_parser(
     func: Callable[..., Any],
     prog: str | None = None,
@@ -849,6 +958,22 @@ def _build_parser(
             )
         if param.kind is Parameter.VAR_POSITIONAL:
             infos.append(_add_var_positional(parser, param))
+            continue
+        dataclass_type = _dataclass_type_from(param.annotation)
+        if dataclass_type is not None:
+            if param.kind is Parameter.KEYWORD_ONLY:
+                raise YeetrError(
+                    f"Dataclass parameter {param.name!r} must not be keyword-only.",
+                )
+            infos += _add_dataclass_parameter(parser, param, dataclass_type)
+            continue
+        named_tuple_type = _named_tuple_type_from(param.annotation)
+        if named_tuple_type is not None:
+            if param.kind is Parameter.KEYWORD_ONLY:
+                raise YeetrError(
+                    f"NamedTuple parameter {param.name!r} must not be keyword-only.",
+                )
+            infos += _add_named_tuple_parameter(parser, param, named_tuple_type)
             continue
         infos.append(_add_parameter(parser, param))
     _install_rich_help(parser, resolved_prog, doc, infos)
@@ -1008,14 +1133,30 @@ def _default_prog() -> str:
 def _build_call_args(
     sig: Signature,
     namespace: argparse.Namespace,
+    infos: list[_ParamInfo],
 ) -> tuple[list[Any], dict[str, Any]]:
     has_var_positional = any(p.kind is Parameter.VAR_POSITIONAL for p in sig.parameters.values())
+    dataclass_infos: dict[str, list[_ParamInfo]] = {}
+    for info in infos:
+        if info.parent_name is None:
+            continue
+        if info.parent_name not in dataclass_infos:
+            dataclass_infos[info.parent_name] = []
+        dataclass_infos[info.parent_name].append(info)
+
     args: list[Any] = []
     kwargs: dict[str, Any] = {}
     for name, param in sig.parameters.items():
-        value = getattr(namespace, name)
+        if name in dataclass_infos:
+            binding_infos = dataclass_infos[name]
+            parent_type = binding_infos[0].parent_type
+            value = parent_type(
+                **{info.name: getattr(namespace, info.name) for info in binding_infos},
+            )
+        else:
+            value = getattr(namespace, name)
         if param.kind is Parameter.VAR_POSITIONAL:
-            args.extend(value)
+            args += value
         elif has_var_positional and param.kind is not Parameter.KEYWORD_ONLY:
             args.append(value)
         else:
@@ -1132,7 +1273,7 @@ def run[T](
     _resolve_envvars(parser, namespace, infos)
     if should_setup_logging:
         _setup_logging(namespace)
-    call_args, call_kwargs = _build_call_args(sig, namespace)
+    call_args, call_kwargs = _build_call_args(sig, namespace, infos)
     result = func(*call_args, **call_kwargs)
     if inspect.iscoroutine(result):
         return typing.cast(T, _run_coroutine(result))
