@@ -40,8 +40,16 @@ def test_positional_and_keyword_default() -> None:
         captured["thing"] = thing
         captured["n"] = n
 
-    yeetr.run(main, argv=["5", "--n", "0.2"])
+    yeetr.run(main, argv=["5", "-n", "0.2"])
     assert captured == {"thing": 5, "n": 0.2}
+
+
+def test_one_letter_option_uses_short_flag_only() -> None:
+    def main(*, n: float = 0.1) -> None:
+        del n
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["--n", "0.2"])
 
 
 def test_default_used_when_omitted() -> None:
@@ -644,7 +652,7 @@ def test_specific_signature_from_spec() -> None:
         captured["thing"] = thing
         captured["n"] = n
 
-    yeetr.run(main, argv=["5", "--n", "0.2"])
+    yeetr.run(main, argv=["5", "-n", "0.2"])
     assert captured == {"thing": 5, "n": 0.2}
 
 
@@ -980,7 +988,7 @@ def test_yeet_cli_defaults_to_main(tmp_path: Path, capsys: pytest.CaptureFixture
     from yeetr._cli import main as yeet_main
 
     file = _write_demo(tmp_path)
-    yeet_main([str(file), "5", "--n", "0.2"])
+    yeet_main([str(file), "5", "-n", "0.2"])
     out = capsys.readouterr().out
     assert "main thing=5 n=0.2" in out
 
@@ -1064,7 +1072,7 @@ def test_yeet_cli_forwards_help_to_target(
         yeet_main([str(file), "--help"])
     out = capsys.readouterr().out
     assert "THING" in out
-    assert "--n" in out
+    assert "-n" in out
 
 
 def test_yeet_cli_loads_imports_from_target_directory(

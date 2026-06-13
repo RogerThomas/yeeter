@@ -53,7 +53,7 @@ def main(thing: int, *, n: float = 0.1) -> None:
 ```
 
 ```bash
-yeet app.py 5 --n 0.2
+yeet app.py 5 -n 0.2
 ```
 
 If `app.py` does not exist yet, `yeet` will scaffold a runnable Python
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 ```
 
 ```bash
-yeet app.py 5 --n 0.2
+yeet app.py 5 -n 0.2
 ```
 
 Note the bare `*` in the signature: parameters **before** it become
@@ -263,7 +263,7 @@ from yeetr import Arg, Opt
 def main(
     path: Annotated[Path, Arg(help="Input file")],
     *,
-    workers: Annotated[int, Opt(alias="-w", help="Worker count")] = 4,
+    workers: Annotated[int, Opt(alias="w", help="Worker count")] = 4,
 ) -> None:
     ...
 ```
@@ -286,7 +286,7 @@ from yeetr import Arg, Opt
 
 
 type InputPath = Annotated[Path, Arg(help="Input file")]
-type WorkerCount = Annotated[int, Opt(alias="-w", help="Worker count")]
+type WorkerCount = Annotated[int, Opt(alias="w", help="Worker count")]
 
 
 def main(path: InputPath, *, workers: WorkerCount = 4) -> None:
@@ -455,6 +455,7 @@ the only way to attach per-parameter metadata that fully type-checks.
 - **Positional** parameters become positional CLI args.
 - **Keyword-only** parameters (after `*`) become `--options`.
 - Names convert from `snake_case` to `kebab-case` for CLI flags.
+- One-letter option names become short flags (`n` -> `-n`).
 - `flag: bool = False` becomes `--flag`.
 - `flag: bool = True` becomes `--no-flag`.
 - Required `bool` parameters raise a clear error.
@@ -512,7 +513,7 @@ yeetr.run(main, should_setup_logging=False)
 `run()` accepts an explicit `argv` for tests:
 
 ```python
-yeetr.run(main, argv=["5", "--n", "0.2"])
+yeetr.run(main, argv=["5", "-n", "0.2"])
 ```
 
 ---

@@ -650,13 +650,13 @@ def _split_flags_for_display(
 ) -> tuple[str, list[str]]:
     if effective is bool and default is True:
         return f"--no-{_snake_to_kebab(param_name)}", []
-    primary = f"--{_snake_to_kebab(param_name)}"
+    primary = _default_option_flag(param_name)
     others = [f for f in flags if f != primary]
     return primary, others
 
 
 def _build_flags(param_name: str, metadata: Opt | None) -> list[str]:
-    long_flag = f"--{_snake_to_kebab(param_name)}"
+    default_flag = _default_option_flag(param_name)
     extras: list[str] = []
     if metadata is not None:
         if metadata.alias:
@@ -664,7 +664,13 @@ def _build_flags(param_name: str, metadata: Opt | None) -> list[str]:
         extras += (_normalize_flag_alias(alias) for alias in metadata.aliases)
     shorts = [f for f in extras if f.startswith("-") and not f.startswith("--")]
     longs = [f for f in extras if f.startswith("--")]
-    return _unique_flags([*shorts, long_flag, *longs])
+    return _unique_flags([*shorts, default_flag, *longs])
+
+
+def _default_option_flag(param_name: str) -> str:
+    if len(param_name) == 1:
+        return f"-{param_name}"
+    return f"--{_snake_to_kebab(param_name)}"
 
 
 def _normalize_flag_alias(alias: str) -> str:

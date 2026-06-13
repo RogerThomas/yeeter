@@ -20,7 +20,7 @@ from yeetr import Arg, Opt, run
 logger = logging.getLogger("main")
 
 
-type Workers = Annotated[int, Opt(alias="-w", help="Worker count")]
+type Workers = Annotated[int, Opt(alias="w", help="Worker count")]
 
 
 async def main(  # pylint: disable=too-many-arguments
@@ -33,14 +33,14 @@ async def main(  # pylint: disable=too-many-arguments
     # Required option with a Literal -> generates `--mode {a,b,c}`.
     mode: Literal["a", "b", "c"],
     # Required option with an alias.
-    output: Annotated[Path, Opt(alias="-o", help="Output file path")],
+    output: Annotated[Path, Opt(alias="o", help="Output file path")],
     # --- bool flags ---
     # `bool = False` -> `--dry-run` enables it.
     dry_run: bool = False,
     # `bool = True` -> `--no-progress` disables it.
     progress: bool = True,
     # Bool flag with a short alias.
-    quiet: Annotated[bool, Opt(alias="-q", help="Suppress chatter")] = False,
+    quiet: Annotated[bool, Opt(alias="q", help="Suppress chatter")] = False,
     # --- numbers ---
     workers: Workers = 4,
     threshold: float = 0.5,
@@ -49,9 +49,9 @@ async def main(  # pylint: disable=too-many-arguments
     # --- literals as choices with default ---
     log_level: Literal["debug", "info", "warning", "error"] = "info",
     # --- repeated options -> list[T] ---
-    tag: Annotated[list[int] | None, Opt(alias="-t", help="Repeatable tag")] = None,
+    tag: Annotated[list[int] | None, Opt(alias="t", help="Repeatable tag")] = None,
     # --- multiple aliases ---
-    name: Annotated[str, Opt(aliases=("-n", "--who"), help="Who to greet")] = "world",
+    name: Annotated[str, Opt(aliases=("n", "who"), help="Who to greet")] = "world",
 ) -> None:
     """Demo command showing every supported parameter style."""
     if tag is None:
