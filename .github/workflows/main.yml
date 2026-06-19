@@ -36,6 +36,9 @@ jobs:
 
   tests-and-type-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       matrix:
         python-version: ["3.14"]
@@ -63,8 +66,7 @@ jobs:
         with:
           files: ./coverage.xml
           fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
 
   check-docs:
     runs-on: ubuntu-latest
