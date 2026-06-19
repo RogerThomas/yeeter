@@ -27,7 +27,7 @@ jobs:
         uses: actions/configure-pages@v6
 
       - name: Build documentation
-        run: uv run mkdocs build --clean
+        run: uv run yeet scripts/build_docs.py --clean
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

@@ -36,11 +36,10 @@ dev = [
     "pyright>=1.1.380",
     "pytest-cov>=7.0.0",
     "ruff>=0.15.7",
-    "mkdocs>=1.6.1",
-    "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.3",
     "prek>=0.4.1",
     "pylint>=3.3.8",
+    "zensical>=0.0.45",
 ]
 
 [build-system]
