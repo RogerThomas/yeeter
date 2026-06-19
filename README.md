@@ -13,6 +13,9 @@
   <a href="https://github.com/RogerThomas/yeetr/releases">
     <img src="https://img.shields.io/github/v/release/RogerThomas/yeetr" alt="Release">
   </a>
+  <a href="https://codecov.io/gh/RogerThomas/yeetr">
+    <img src="https://codecov.io/gh/RogerThomas/yeetr/graph/badge.svg" alt="Coverage">
+  </a>
   <a href="https://pypi.org/project/yeetr">
     <img src="https://img.shields.io/pypi/v/yeetr?color=%2334D058&label=pypi%20package" alt="Package version">
   </a>
