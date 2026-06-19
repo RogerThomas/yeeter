@@ -6,7 +6,7 @@ import asyncio
 import enum
 import logging
 import stat
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal, NamedTuple
 
@@ -239,6 +239,44 @@ def test_tuple_rejects_bad_value() -> None:
         yeetr.run(main, argv=["1", "bad"])
 
 
+def test_optional_positional_uses_default_when_omitted() -> None:
+    captured: dict[str, object] = {}
+
+    def main(count: int = 3) -> None:
+        captured["count"] = count
+
+    yeetr.run(main, argv=[])
+    assert captured == {"count": 3}
+
+
+def test_optional_positional_list_uses_default_copy() -> None:
+    captured: dict[str, object] = {}
+
+    def main(tags: list[str] | None = None) -> None:
+        captured["tags"] = tags
+
+    yeetr.run(main, argv=[])
+    assert captured == {"tags": []}
+
+
+def test_optional_positional_literal_uses_default_when_omitted() -> None:
+    captured: dict[str, object] = {}
+
+    def main(format: Literal["json", "csv"] = "json") -> None:
+        captured["format"] = format
+
+    yeetr.run(main, argv=[])
+    assert captured == {"format": "json"}
+
+
+def test_positional_bool_rejected() -> None:
+    def main(loud: _BoolAlias) -> None:
+        del loud
+
+    with pytest.raises(YeetrError, match="Positional boolean"):
+        yeetr.run(main, argv=["true"])
+
+
 def test_envvar_enum(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
@@ -394,6 +432,30 @@ def test_dataclass_parameter_uses_unmarked_fields_as_options() -> None:
     assert captured == {"args": Args(count=5)}
 
 
+def test_dataclass_keyword_only_parameter_rejected() -> None:
+    @dataclass(slots=True)
+    class Args:
+        count: int
+
+    def main(*, args: Args) -> None:
+        del args
+
+    with pytest.raises(YeetrError, match="must not be keyword-only"):
+        yeetr.run(main, argv=[])
+
+
+def test_dataclass_parameter_with_no_init_fields_rejected() -> None:
+    @dataclass(slots=True)
+    class Args:
+        count: int = field(init=False)
+
+    def main(args: Args) -> None:
+        del args
+
+    with pytest.raises(YeetrError, match="no init fields"):
+        yeetr.run(main, argv=[])
+
+
 def test_named_tuple_parameter_builds_instance_from_options() -> None:
     class Args(NamedTuple):
         name: Annotated[str, Opt(alias="n", help="Name")] = "default"
@@ -423,6 +485,17 @@ def test_named_tuple_parameter_supports_positional_arg_fields() -> None:
 
     yeetr.run(main, argv=["path", "-w", "8"])
     assert captured == {"args": Args(path=Path("path"), workers=8)}
+
+
+def test_named_tuple_keyword_only_parameter_rejected() -> None:
+    class Args(NamedTuple):
+        value: int
+
+    def main(*, args: Args) -> None:
+        del args
+
+    with pytest.raises(YeetrError, match="must not be keyword-only"):
+        yeetr.run(main, argv=[])
 
 
 def test_arg_on_positional() -> None:
@@ -472,6 +545,7 @@ type _Workers = Annotated[int, Opt(alias="-w", help="Worker count")]
 type _Count = int
 type _MaybeInt = int | None
 type _AliasChain = _Workers
+type _BoolAlias = bool
 
 
 def test_type_alias_annotated_param() -> None:
@@ -1041,6 +1115,20 @@ def test_yeet_cli_missing_non_python_file_errors(
     assert "file not found" in err
 
 
+def test_yeet_cli_missing_parent_directory_errors(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "missing" / "demo.py"
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(file)])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "parent directory not found" in err
+
+
 def test_yeet_cli_no_args_prints_usage(capsys: pytest.CaptureFixture[str]) -> None:
     from yeetr._cli import main as yeet_main
 
@@ -1093,3 +1181,48 @@ def test_yeet_cli_loads_imports_from_target_directory(
     yeet_main([str(file)])
     out = capsys.readouterr().out
     assert "loaded" in out
+
+
+def test_yeet_cli_errors_when_target_function_missing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text("VALUE = 1\n")
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(file)])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "has no callable attribute 'main'" in err
+
+
+def test_yeet_cli_errors_when_named_attribute_is_not_callable(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text("thing = 1\n")
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(file), "thing"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "has no callable attribute 'main'" in err
+
+
+def test_yeet_cli_keeps_non_callable_candidate_as_argument(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "thing = 1\n\ndef main(name: str) -> None:\n    print(name)\n",
+    )
+    yeet_main([str(file), "thing"])
+    out = capsys.readouterr().out
+    assert "thing" in out
