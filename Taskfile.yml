@@ -70,9 +70,10 @@ tasks:
   docs-test:
     desc: Test if documentation can be built without warnings or errors
     cmds:
-      - uv run mkdocs build -s
+      - uv run yeet scripts/build_docs.py --strict
 
   docs:
     desc: Build and serve the documentation
     cmds:
-      - uv run mkdocs serve
+      - uv run yeet scripts/build_docs.py
+      - uv run zensical serve
