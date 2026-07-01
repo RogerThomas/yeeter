@@ -1066,7 +1066,7 @@ def _required_text(required: bool) -> Text:
 
 def _arguments_table(infos: list[_ParamInfo]) -> Table:
     table = Table(
-        title="Arguments",
+        title="▸ Arguments",
         title_style="bold cyan",
         title_justify="left",
         show_lines=False,
@@ -1093,7 +1093,9 @@ def _arguments_table(infos: list[_ParamInfo]) -> Table:
 def _options_table(infos: list[_ParamInfo]) -> Table:
     visible = [i for i in infos if not i.hidden]
     show_envvar = any(i.envvar for i in visible)
-    table = Table(title="Options", title_style="bold cyan", title_justify="left", show_lines=False)
+    table = Table(
+        title="⚙ Options", title_style="bold cyan", title_justify="left", show_lines=False
+    )
     table.add_column("Name", style="bold green", no_wrap=True)
     table.add_column("Alias(es)", style="cyan", no_wrap=True)
     table.add_column("Type", style="magenta", no_wrap=True)

@@ -2,12 +2,15 @@
 """Example yeetr entry point."""
 
 import logging
+from pathlib import Path
 from typing import Annotated as Ant
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
-from yeetr import Opt
+from yeetr import Arg, Opt
 
 logger = logging.getLogger("Main")
+
+type Model = Literal["gpt-5.4-nano", "gpt-5.4-mini", "gpt-5.4"]
 
 
 class Args(NamedTuple):
@@ -19,6 +22,18 @@ class Args(NamedTuple):
     ] = 0.5
 
 
-def main(args: Args) -> None:
-    """Greet someone."""
-    logger.info("Hello from yeetr, args: %s", args)
+def main(
+    pdf_path: Ant[Path, Arg(help="Path to the PDF file")],
+    *,
+    model: Ant[Model, Opt(alias="m", help="The LLM model to use for detection")],
+    tolerance: Ant[float, Opt(aliases=("t", "tol"), help="The tolerance for detection")] = 0.5,
+    verbose: Ant[bool, Opt(alias="v", help="Enable verbose output")] = False,
+) -> None:
+    """Use an LLM to detect text in a PDF file."""
+    logger.info(
+        "Using model: %s, pdf-path: %s with tolerance: %s, verbose: %s",
+        model,
+        pdf_path,
+        tolerance,
+        verbose,
+    )

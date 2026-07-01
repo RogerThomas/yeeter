@@ -124,4 +124,4 @@ def main(argv: list[str] | None = None) -> None:
         _print_error(f"{path.name} has no callable attribute {func_name!r}")
         sys.exit(2)
 
-    run(func, argv=rest, prog=path.stem)
+    run(func, argv=rest, prog=f"yeet {path.name}")
