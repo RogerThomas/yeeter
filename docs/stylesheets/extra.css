@@ -1,6 +1,6 @@
 .md-header__button.md-logo img,
 .md-header__button.md-logo svg {
-  height: 2rem;
+  height: 1.8rem;
 }
 
 .md-typeset h1 {
@@ -13,6 +13,24 @@
 
 .md-typeset img.no-radius {
   border-radius: 0;
+}
+
+.hero {
+  text-align: center;
+}
+
+.hero-logo {
+  display: block;
+  margin: 0 auto;
+  width: min(500px, 100%);
+}
+
+[data-md-color-scheme="slate"] .hero-logo {
+  content: url("../assets/yeetr-dark.png");
+}
+
+.hero-badges img {
+  vertical-align: middle;
 }
 
 .md-typeset pre > code {
