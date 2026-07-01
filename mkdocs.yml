@@ -14,6 +14,8 @@ nav:
       - Async Support: guide/async.md
       - Parameter Types: guide/parameter-types.md
       - Parameter Metadata: guide/parameter-metadata.md
+      - Bundled Args: guide/bundled-args.md
+      - Path Validators: guide/path-validators.md
       - CLI Rules: guide/cli-rules.md
       - Runtime Behavior: guide/runtime.md
   - Comparison: comparison.md

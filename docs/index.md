@@ -73,9 +73,13 @@ Parameters **before** the bare `*` become positional CLI args. Parameters
   script, the explicit `yeetr.run(main)` form, and executable shebangs.
 - [Async Support](guide/async.md) — `async def main`, handled natively.
 - [Parameter Types](guide/parameter-types.md) — every type yeetr understands,
-  from `Path` to `Enum` to tuples.
-- [Parameter Metadata](guide/parameter-metadata.md) — `Arg`/`Opt`, bundled
-  args, env var fallback, hidden options, path validators, `*args`.
+  from `Path` to `Enum` to tuples and variadic `*args`.
+- [Parameter Metadata](guide/parameter-metadata.md) — `Arg`/`Opt`, env var
+  fallback, hidden options.
+- [Bundled Args](guide/bundled-args.md) — group related parameters into a
+  `dataclass` or `NamedTuple`.
+- [Path Validators](guide/path-validators.md) — `exists`, `file_okay`,
+  `dir_okay`, `readable`, and `writable` checks.
 - [CLI Rules](guide/cli-rules.md) — the short reference for how signatures
   map to flags.
 - [Runtime Behavior](guide/runtime.md) — logging, testing, and how help and
