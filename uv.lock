@@ -900,7 +900,7 @@ wheels = [
 
 [[package]]
 name = "yeetr"
-version = "2026.7.1"
+version = "2026.7.1.post1"
 source = { editable = "." }
 dependencies = [
     { name = "rich" },
