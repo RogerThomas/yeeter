@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://rogerthomas.github.io/yeetr/">
-    <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/assets/yeetr.png" alt="yeetr" width="500">
+    <img src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/docs/assets/yeetr.png" alt="yeetr" width="500">
   </a>
 </p>
 <p align="center">
@@ -72,7 +72,7 @@ uv add yeetr
 - **Rich output** — formatted logging and help/error tables out of the box.
 
 <p align="center">
-  <img class="no-radius" src="assets/yeetr-help.png" alt="yeetr help output" width="900">
+  <img class="no-radius" src="docs/assets/yeetr-help.png" alt="yeetr help output" width="900">
 </p>
 
 ## Docs
