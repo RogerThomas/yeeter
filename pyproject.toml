@@ -7,11 +7,12 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 keywords = ['python']
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -52,7 +53,7 @@ module-root = ""
 
 [tool.pyright]
 include = ["yeetr", "tests"]
-pythonVersion = "3.14"
+pythonVersion = "3.13"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 
@@ -60,7 +61,7 @@ reportMissingTypeStubs = false
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py313"
 line-length = 100
 fix = true
 

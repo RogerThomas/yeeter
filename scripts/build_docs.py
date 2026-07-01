@@ -31,7 +31,7 @@ def _signature_markdown(symbol: object) -> str:
         return ""
     try:
         signature = inspect.signature(symbol)
-    except NameError, TypeError, ValueError:
+    except (NameError, TypeError, ValueError):
         return ""
     return f"```python\n{signature}\n```"
 

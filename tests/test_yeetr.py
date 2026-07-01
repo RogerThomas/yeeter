@@ -6,18 +6,16 @@ import asyncio
 import enum
 import logging
 import stat
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal, NamedTuple
+from typing import Annotated, Literal, NamedTuple
 
 import pytest
 from rich.logging import RichHandler
 
 import yeetr
 from yeetr import Arg, Opt, YeetrError
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 
 @pytest.fixture(autouse=True)

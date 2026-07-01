@@ -1,5 +1,7 @@
 """CLI entry point for running callables from Python files."""
 
+from __future__ import annotations
+
 import importlib.util
 import stat
 import sys
