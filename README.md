@@ -61,9 +61,10 @@ uv add yeetr
 
 ## Highlights
 
-- **Zero boilerplate** — `yeet app.py` finds and runs `main`, and scaffolds
-  the file if it doesn't exist yet.
-- **Executable shebangs** — `#!yeet` makes a script runnable on its own.
+- **Zero boilerplate** — `yeet app.py` finds and runs `main` — or any
+  public function you name — and scaffolds the file if it doesn't exist yet.
+- **Executable shebangs** — `#!yeet` makes a script runnable on its own;
+  `#!yeet FUNC` picks the function to run.
 - **Fully typed** — `str`, `int`, `float`, `bool`, `Path`, `datetime`,
   `date`, `time`, `UUID`, `Decimal`, `Literal`, `Enum`, `T | None`,
   `list[T]`, tuples, and structured `dataclass`/`NamedTuple` args, all

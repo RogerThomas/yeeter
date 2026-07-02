@@ -24,3 +24,6 @@
 - `Opt(hidden=True)` still parses but is hidden from `--help`.
 - `exists`/`file_okay`/`dir_okay`/`readable`/`writable` validate `Path`
   parameters (and `Path`-typed lists, tuples, and `*args`) at parse time.
+- `Arg(parser=...)`/`Opt(parser=...)` run a custom converter: the CLI string
+  is coerced to the parser's annotated input type, then the parser produces
+  the final value. Not supported on `list`/`tuple` parameters or `*args`.

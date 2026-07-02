@@ -24,8 +24,8 @@ yeet app.py input.pdf -w 8
 ```
 
 `Arg` accepts `help`, `metavar`, `min` (only meaningful on [variadic `*args`](parameter-types.md#variadic-positional-args-args)),
-and the [path validators](path-validators.md). `Opt` accepts `alias`,
-`aliases`, `help`, `metavar`, `envvar`, `hidden`, and the
+`parser`, and the [path validators](path-validators.md). `Opt` accepts
+`alias`, `aliases`, `help`, `metavar`, `envvar`, `hidden`, `parser`, and the
 [path validators](path-validators.md) too. Mixing them (e.g. `Opt` on a
 positional or `Arg` on a keyword-only parameter) raises a clear `YeetrError`.
 
@@ -74,6 +74,48 @@ Env-var values are type-coerced just like CLI values. `bool` accepts
 `1/0/true/false/yes/no` (case-insensitive). `list[T]` splits on `os.pathsep`
 (`:` on POSIX, `;` on Windows). `tuple[...]` also splits on `os.pathsep`.
 `Literal` and enum choices are validated.
+
+## Custom parsers (`parser=`)
+
+`parser=` supplies your own converter for a parameter, so yeetr can handle
+domain types it doesn't build in. yeetr inspects the parser's single
+(annotated) parameter, coerces the raw CLI string to *that* type with its
+normal machinery, then calls the parser to produce the value passed to the
+function:
+
+```python
+from pathlib import Path
+from typing import Annotated
+from yeetr import Opt
+
+
+def read_bytes(path: Path) -> bytes:
+    return path.read_bytes()
+
+
+def main(*, pdf_bytes: Annotated[bytes, Opt(parser=read_bytes)]) -> None:
+    ...
+```
+
+```bash
+yeet app.py --pdf-bytes input.pdf
+```
+
+Here yeetr sees `read_bytes` takes a `Path`, coerces `"input.pdf"` to a
+`Path`, and calls `read_bytes` with it. The outer annotation (`bytes`) is
+only the function-facing type — yeetr never coerces to it; the parser is
+trusted for the output.
+
+The parser's input type drives everything user-facing: `--help` shows the
+input type, and the [path validators](path-validators.md) compose —
+`Opt(parser=read_bytes, exists=True)` validates the intermediate `Path`
+before the parser runs. If the parser raises `ValueError` or `TypeError`,
+the failure is reported as a normal argument error.
+
+The parser must be a callable taking exactly one type-annotated parameter;
+anything else raises `YeetrError` at parser-build time. `parser=` is not
+supported on `list`/`tuple` parameters or variadic `*args`, and `bool`,
+`list`, and `tuple` parser input types are rejected.
 
 ## Hidden options (`Opt(hidden=True)`)
 
