@@ -25,7 +25,9 @@ execute normally.
 
 The default function name is `main`. To run another function, name it — the
 target must be a **public** `def`/`async def` defined in that file (not an
-import, a class, or a `_`-prefixed helper):
+import, a class, or a `_`-prefixed helper). Decorated functions qualify only
+if the decorator preserves the function's identity with `functools.wraps` —
+otherwise the name is not recognised as a runnable function:
 
 ```python
 # app.py
