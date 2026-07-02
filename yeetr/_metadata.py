@@ -1,5 +1,6 @@
 """Public metadata objects used to describe CLI parameters."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -22,6 +23,11 @@ class Arg:
     ``writable``) apply only when the parameter's effective type is ``Path``
     (or ``list[Path]`` / variadic ``*paths: Path``). Setting any of these on
     a non-``Path`` parameter raises ``YeetrError`` at parser-build time.
+
+    ``parser`` supplies a custom converter: yeetr coerces the raw CLI string
+    to the parser's single (annotated) parameter type, then calls the parser
+    to produce the value passed to the function. Not supported on ``list``,
+    ``tuple``, or variadic ``*args`` parameters.
     """
 
     help: str | None = None
@@ -32,6 +38,7 @@ class Arg:
     dir_okay: bool = True
     readable: bool = False
     writable: bool = False
+    parser: Callable[..., object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +68,11 @@ class Opt:
     Path validators (``exists``, ``file_okay``, ``dir_okay``, ``readable``,
     ``writable``) apply only when the parameter's effective type is ``Path``
     (or ``list[Path]``).
+
+    ``parser`` supplies a custom converter: yeetr coerces the raw CLI string
+    to the parser's single (annotated) parameter type, then calls the parser
+    to produce the value passed to the function. Not supported on ``list``
+    or ``tuple`` parameters.
     """
 
     alias: str | None = None
@@ -74,3 +86,4 @@ class Opt:
     dir_okay: bool = True
     readable: bool = False
     writable: bool = False
+    parser: Callable[..., object] | None = None

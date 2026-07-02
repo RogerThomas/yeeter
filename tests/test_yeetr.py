@@ -1329,6 +1329,193 @@ def test_path_checks_on_var_positional_rejects_missing(tmp_path: Path) -> None:
         yeetr.run(main, argv=[str(missing)])
 
 
+def _read_bytes(path: Path) -> bytes:
+    return path.read_bytes()
+
+
+def _double(value: int) -> int:
+    return value * 2
+
+
+def _reject(value: str) -> str:
+    raise ValueError(value)
+
+
+def _untyped(
+    value,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+) -> str:
+    del value
+    return ""
+
+
+def _no_params() -> str:
+    return ""
+
+
+def _two_params(first: str, second: str) -> str:
+    return first + second
+
+
+def _split_words(value: str) -> list[str]:
+    return value.split()
+
+
+def test_parser_opt_coerces_input_then_calls_parser(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, data: Annotated[bytes, Opt(parser=_read_bytes)]) -> None:
+        captured["data"] = data
+
+    file = tmp_path / "file"
+    file.write_bytes(b"content")
+    yeetr.run(main, argv=["--data", str(file)])
+    assert captured == {"data": b"content"}
+
+
+def test_parser_arg_coerces_input_then_calls_parser() -> None:
+    captured: dict[str, object] = {}
+
+    def main(value: Annotated[int, Arg(parser=_double)]) -> None:
+        captured["value"] = value
+
+    yeetr.run(main, argv=["5"])
+    assert captured == {"value": 10}
+
+
+def test_parser_with_exists_rejects_missing_before_parser(tmp_path: Path) -> None:
+    def main(*, data: Annotated[bytes, Opt(parser=_read_bytes, exists=True)]) -> None:
+        del data
+
+    missing = tmp_path / "missing"
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["--data", str(missing)])
+
+
+def test_parser_with_exists_accepts_existing(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, data: Annotated[bytes, Opt(parser=_read_bytes, exists=True)]) -> None:
+        captured["data"] = data
+
+    file = tmp_path / "file"
+    file.write_bytes(b"content")
+    yeetr.run(main, argv=["--data", str(file)])
+    assert captured == {"data": b"content"}
+
+
+def test_parser_with_path_checks_on_non_path_input_raises() -> None:
+    def main(*, value: Annotated[int, Opt(parser=_double, exists=True)]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="Path"):
+        yeetr.run(main, argv=["--value", "5"])
+
+
+def test_parser_error_is_wrapped(capsys: pytest.CaptureFixture[str]) -> None:
+    def main(*, value: Annotated[str, Opt(parser=_reject)]) -> None:
+        del value
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["--value", "x"])
+    err = capsys.readouterr().err
+    assert "invalid value" in err
+
+
+def test_parser_arg_error_is_wrapped() -> None:
+    def main(value: Annotated[str, Arg(parser=_reject)]) -> None:
+        del value
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["x"])
+
+
+def test_parser_zero_params_rejected() -> None:
+    def main(*, value: Annotated[str, Opt(parser=_no_params)]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="must take exactly one argument"):
+        yeetr.run(main, argv=["--value", "x"])
+
+
+def test_parser_two_params_rejected() -> None:
+    def main(value: Annotated[str, Arg(parser=_two_params)]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="must take exactly one argument"):
+        yeetr.run(main, argv=["x"])
+
+
+def test_parser_untyped_param_rejected() -> None:
+    opt = Opt(parser=_untyped)  # pyright: ignore[reportUnknownArgumentType]
+
+    def main(*, value: Annotated[str, opt]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="untyped parameter"):
+        yeetr.run(main, argv=["--value", "x"])
+
+
+def test_parser_help_shows_input_type(capsys: pytest.CaptureFixture[str]) -> None:
+    def main(*, data: Annotated[bytes, Opt(parser=_read_bytes)]) -> None:
+        del data
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["--help"])
+    output = capsys.readouterr().out
+    assert "Path" in output
+    assert "bytes" not in output
+
+
+def test_parser_on_list_rejected() -> None:
+    def main(*, words: Annotated[list[str], Opt(parser=_split_words)]) -> None:
+        del words
+
+    with pytest.raises(YeetrError, match="list/tuple"):
+        yeetr.run(main, argv=["--words", "a b"])
+
+
+def test_parser_on_tuple_rejected() -> None:
+    def main(pair: Annotated[tuple[int, int], Arg(parser=_double)]) -> None:
+        del pair
+
+    with pytest.raises(YeetrError, match="list/tuple"):
+        yeetr.run(main, argv=["1", "2"])
+
+
+def test_parser_on_var_positional_rejected() -> None:
+    def main(*values: Annotated[int, Arg(parser=_double)]) -> None:
+        del values
+
+    with pytest.raises(YeetrError, match="variadic"):
+        yeetr.run(main, argv=["5"])
+
+
+def test_parser_optional_annotation(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, data: Annotated[bytes | None, Opt(parser=_read_bytes)] = None) -> None:
+        captured["data"] = data
+
+    yeetr.run(main, argv=[])
+    assert captured == {"data": None}
+
+    file = tmp_path / "file"
+    file.write_bytes(b"content")
+    yeetr.run(main, argv=["--data", str(file)])
+    assert captured == {"data": b"content"}
+
+
+def test_parser_envvar(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, value: Annotated[int, Opt(parser=_double, envvar="VALUE")] = 0) -> None:
+        captured["value"] = value
+
+    monkeypatch.setenv("VALUE", "3")
+    yeetr.run(main, argv=[])
+    assert captured == {"value": 6}
+
+
 def _write_demo(tmp_path: Path) -> Path:
     file = tmp_path / "demo.py"
     file.write_text(

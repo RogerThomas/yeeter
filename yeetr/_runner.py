@@ -93,6 +93,7 @@ class _ParamInfo:  # pylint: disable=too-many-instance-attributes
     default: Any = None
     parent_name: str | None = None
     parent_type: Any = None
+    custom_parser: Callable[..., object] | None = None
 
 
 def _is_enum_type(target: Any) -> bool:
@@ -209,6 +210,7 @@ def _merge_arg(outer: Arg, inner: Arg) -> Arg:
         dir_okay=outer.dir_okay and inner.dir_okay,
         readable=outer.readable or inner.readable,
         writable=outer.writable or inner.writable,
+        parser=outer.parser if outer.parser is not None else inner.parser,
     )
 
 
@@ -225,6 +227,7 @@ def _merge_opt(outer: Opt, inner: Opt) -> Opt:
         dir_okay=outer.dir_okay and inner.dir_okay,
         readable=outer.readable or inner.readable,
         writable=outer.writable or inner.writable,
+        parser=outer.parser if outer.parser is not None else inner.parser,
     )
 
 
@@ -461,15 +464,59 @@ def _coerce_tuple_value(
     return values
 
 
+def _apply_custom_parser(
+    value: Any,
+    custom_parser: Callable[..., object],
+    param_name: str,
+    raw: str,
+) -> Any:
+    try:
+        return custom_parser(value)
+    except (ValueError, TypeError) as exc:
+        raise argparse.ArgumentTypeError(
+            f"invalid value for {param_name!r}: {raw!r} ({exc})",
+        ) from exc
+
+
+def _resolve_parser_input_type(custom_parser: Callable[..., object], param_name: str) -> Any:
+    try:
+        parser_sig = inspect.signature(custom_parser)
+    except (TypeError, ValueError) as exc:
+        raise YeetrError(f"parser for {param_name!r} must take exactly one argument") from exc
+    parser_params = list(parser_sig.parameters.values())
+    bad_kinds = {Parameter.KEYWORD_ONLY, Parameter.VAR_KEYWORD}
+    if len(parser_params) != 1 or parser_params[0].kind in bad_kinds:
+        raise YeetrError(f"parser for {param_name!r} must take exactly one argument")
+    only = parser_params[0]
+    if only.annotation is Parameter.empty:
+        raise YeetrError(
+            f"parser for {param_name!r} has an untyped parameter; add a type annotation",
+        )
+    annotation = only.annotation
+    if isinstance(annotation, str):
+        hint_source = custom_parser if inspect.isroutine(custom_parser) else custom_parser.__call__
+        annotation = typing.get_type_hints(hint_source)[only.name]
+    input_type = _resolve_type_alias(annotation)
+    if input_type is bool or get_origin(input_type) in {list, tuple}:
+        raise YeetrError(
+            f"parser for {param_name!r} takes {_type_name(input_type)!r}; "
+            "bool, list, and tuple parser input types are not supported",
+        )
+    return input_type
+
+
 def _type_caster(
     target: Any,
     param_name: str,
     path_checks: _PathChecks | None = None,
+    custom_parser: Callable[..., object] | None = None,
 ) -> Callable[[str], Any]:
     def cast(raw: str) -> Any:
-        value = _coerce_value(raw, target, param_name)
+        value = _coerce_nested_value(raw, target, param_name)
         if target is Path and path_checks is not None and path_checks.is_active():
-            return _apply_path_checks(value, path_checks)
+            value = _apply_path_checks(value, path_checks)
+        if custom_parser is not None:
+            return _apply_custom_parser(value, custom_parser, param_name, raw)
         return value
 
     cast.__name__ = getattr(target, "__name__", "value")
@@ -530,6 +577,10 @@ def _add_var_positional(
         )
 
     arg_meta = metadata if isinstance(metadata, Arg) else None
+    if arg_meta is not None and arg_meta.parser is not None:
+        raise YeetrError(
+            f"parser= is not supported on variadic positional parameter {param.name!r}.",
+        )
     help_text = arg_meta.help if arg_meta is not None else None
     metavar = arg_meta.metavar if arg_meta is not None else None
     minimum = arg_meta.min if arg_meta is not None else 0
@@ -590,11 +641,20 @@ def _add_parameter(  # pylint: disable=too-many-locals
             "use `Arg` for positional parameters.",
         )
 
+    custom_parser = metadata.parser if metadata is not None else None
+    if custom_parser is not None:
+        if get_origin(effective) in {list, tuple}:
+            raise YeetrError(
+                f"parser= is not supported on list/tuple parameters; "
+                f"parameter {param.name!r} is annotated as {effective}.",
+            )
+        effective = _resolve_parser_input_type(custom_parser, param.name)
+
     origin = get_origin(effective)
     is_list = origin is list
     is_tuple = origin is tuple
-    is_literal = origin is Literal
-    is_enum = _is_enum_type(effective)
+    is_literal = custom_parser is None and origin is Literal
+    is_enum = custom_parser is None and _is_enum_type(effective)
 
     help_text = metadata.help if metadata is not None else None
     metavar = metadata.metavar if metadata is not None else None
@@ -624,6 +684,7 @@ def _add_parameter(  # pylint: disable=too-many-locals
         path_checks=path_checks,
         has_default=has_default,
         default=default,
+        custom_parser=custom_parser,
     )
 
     if is_keyword_only:
@@ -644,6 +705,7 @@ def _add_parameter(  # pylint: disable=too-many-locals
             metavar=metavar,
             path_checks=path_checks,
             envvar_active=envvar is not None,
+            custom_parser=custom_parser,
         )
         long_flag, aliases = _split_flags_for_display(param.name, flags, effective, default)
         info.long_flag = long_flag
@@ -662,6 +724,7 @@ def _add_parameter(  # pylint: disable=too-many-locals
             help_text=help_text,
             metavar=metavar,
             path_checks=path_checks,
+            custom_parser=custom_parser,
         )
     return info
 
@@ -728,6 +791,7 @@ def _add_option(  # pylint: disable=too-many-arguments,too-many-branches,too-man
     metavar: str | None,
     path_checks: _PathChecks,
     envvar_active: bool,
+    custom_parser: Callable[..., object] | None,
 ) -> None:
     if effective is bool:
         if not has_default and not envvar_active:
@@ -831,7 +895,7 @@ def _add_option(  # pylint: disable=too-many-arguments,too-many-branches,too-man
     parser.add_argument(
         *flags,
         dest=param_name,
-        type=_type_caster(effective, param_name, path_checks),
+        type=_type_caster(effective, param_name, path_checks, custom_parser),
         default=argparse_default,
         required=argparse_required,
         help=rendered_help,
@@ -853,6 +917,7 @@ def _add_positional(  # pylint: disable=too-many-arguments
     help_text: str | None,
     metavar: str | None,
     path_checks: _PathChecks,
+    custom_parser: Callable[..., object] | None,
 ) -> None:
     dest = param_name
     display_metavar = metavar or _snake_to_kebab(param_name).upper()
@@ -920,7 +985,7 @@ def _add_positional(  # pylint: disable=too-many-arguments
         return
 
     kwargs = {
-        "type": _type_caster(effective, param_name, path_checks),
+        "type": _type_caster(effective, param_name, path_checks, custom_parser),
         "help": rendered_help,
         "metavar": display_metavar,
     }
@@ -1228,7 +1293,10 @@ def _coerce_envvar_value(raw: str, info: _ParamInfo) -> Any:
         return _coerce_tuple_value(parts, effective, info.name, info.path_checks)
     if info.is_literal:
         return _literal_caster(get_args(effective), info.name)(raw)
-    return _coerce_value(raw, effective, info.name)
+    value = _coerce_nested_value(raw, effective, info.name)
+    if info.custom_parser is not None:
+        return _apply_custom_parser(value, info.custom_parser, info.name, raw)
+    return value
 
 
 def _resolve_envvars(
