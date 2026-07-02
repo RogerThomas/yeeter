@@ -1,15 +1,35 @@
+# Dependabot configuration
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
+  # Python dependencies, resolved against uv.lock
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
     groups:
       python-dependencies:
         patterns:
           - "*"
+    labels:
+      - "dependencies"
+      - "python"
 
+  # GitHub Actions used in workflows and the custom composite action.
+  # The composite action's directory must be listed explicitly — the
+  # github-actions ecosystem only scans .github/workflows/ for "/".
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/setup-python-env"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "github-actions"
