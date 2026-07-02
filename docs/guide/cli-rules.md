@@ -13,6 +13,8 @@
 - `tuple[T, U]` consumes a fixed number of values.
 - `tuple[T, ...]` consumes a variable number of values.
 - `Enum` subclasses parse from member values and are rendered as choices.
+- `datetime`/`date`/`time` parse ISO 8601 strings; `UUID` and `Decimal`
+  parse their standard string forms.
 - `*args: T` becomes a trailing variadic positional argument; `Arg(min=1)`
   requires at least one value.
 - A single `dataclass`/`NamedTuple` parameter is unpacked into the CLI: its
