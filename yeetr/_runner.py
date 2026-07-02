@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import datetime
+import decimal
 import enum
 import inspect
 import logging
@@ -13,6 +15,7 @@ import os
 import sys
 import types
 import typing
+import uuid
 from dataclasses import MISSING, dataclass, field, fields, is_dataclass
 from inspect import Parameter, Signature
 from pathlib import Path
@@ -160,7 +163,7 @@ def _snake_to_kebab(name: str) -> str:
 
 
 def _format_default(value: Any) -> str:
-    if isinstance(value, Path):
+    if isinstance(value, (Path, datetime.date, datetime.time, uuid.UUID, decimal.Decimal)):
         return str(value)
     if isinstance(value, list):
         items = typing.cast(list[object], value)
@@ -352,6 +355,17 @@ def _apply_path_checks(path: Path, checks: _PathChecks) -> Path:
     return path
 
 
+def _scalar_parser(target: Any) -> Callable[[str], Any] | None:
+    parsers: dict[Any, Callable[[str], Any]] = {
+        datetime.datetime: datetime.datetime.fromisoformat,
+        datetime.date: datetime.date.fromisoformat,
+        datetime.time: datetime.time.fromisoformat,
+        uuid.UUID: uuid.UUID,
+        decimal.Decimal: decimal.Decimal,
+    }
+    return parsers.get(target)
+
+
 def _coerce_value(raw: str, target: Any, param_name: str) -> Any:  # pylint: disable=too-many-return-statements
     if target is str:
         return raw
@@ -371,6 +385,14 @@ def _coerce_value(raw: str, target: Any, param_name: str) -> Any:  # pylint: dis
             ) from exc
     if target is Path:
         return Path(raw)
+    scalar_parser = _scalar_parser(target)
+    if scalar_parser is not None:
+        try:
+            return scalar_parser(raw)
+        except (ValueError, decimal.InvalidOperation) as exc:
+            raise argparse.ArgumentTypeError(
+                f"invalid {_type_name(target)} value for {param_name!r}: {raw!r}",
+            ) from exc
     if target is bool:
         lowered = raw.lower()
         if lowered in {"true", "1", "yes", "y"}:

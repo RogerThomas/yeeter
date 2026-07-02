@@ -214,6 +214,9 @@ __marimo__/
 # macOS
 .DS_Store
 
+# Local planning notes
+plans/
+
 # Custom
 .in
 

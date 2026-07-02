@@ -3,9 +3,12 @@
 # pylint: disable=import-outside-toplevel,missing-class-docstring,missing-function-docstring,redefined-builtin,too-many-lines
 
 import asyncio
+import datetime
+import decimal
 import enum
 import logging
 import stat
+import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -235,6 +238,289 @@ def test_tuple_rejects_bad_value() -> None:
 
     with pytest.raises(SystemExit):
         yeetr.run(main, argv=["1", "bad"])
+
+
+def test_datetime_parsing() -> None:
+    captured: dict[str, object] = {}
+
+    def main(started: datetime.datetime) -> None:
+        captured["started"] = started
+
+    yeetr.run(main, argv=["2020-01-02T03:04:05+00:00"])
+    assert captured == {"started": datetime.datetime(2020, 1, 2, 3, 4, 5, tzinfo=datetime.UTC)}
+
+
+def test_datetime_rejects_bad_value() -> None:
+    def main(started: datetime.datetime) -> None:
+        del started
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["not-a-datetime"])
+
+
+def test_datetime_optional_default_none() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, started: datetime.datetime | None = None) -> None:
+        captured["started"] = started
+
+    yeetr.run(main, argv=[])
+    assert captured == {"started": None}
+
+
+def test_datetime_list_option() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, at: list[datetime.datetime] | None = None) -> None:
+        captured["at"] = at
+
+    yeetr.run(main, argv=["--at", "2020-01-02T03:04:05+00:00", "--at", "2021-06-07T08:09:10+00:00"])
+    assert captured == {
+        "at": [
+            datetime.datetime(2020, 1, 2, 3, 4, 5, tzinfo=datetime.UTC),
+            datetime.datetime(2021, 6, 7, 8, 9, 10, tzinfo=datetime.UTC),
+        ]
+    }
+
+
+def test_envvar_datetime(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, started: Annotated[datetime.datetime | None, Opt(envvar="STARTED")] = None) -> None:
+        captured["started"] = started
+
+    monkeypatch.setenv("STARTED", "2020-01-02T03:04:05+00:00")
+    yeetr.run(main, argv=[])
+    assert captured == {"started": datetime.datetime(2020, 1, 2, 3, 4, 5, tzinfo=datetime.UTC)}
+
+
+def test_date_parsing() -> None:
+    captured: dict[str, object] = {}
+
+    def main(day: datetime.date) -> None:
+        captured["day"] = day
+
+    yeetr.run(main, argv=["2020-01-02"])
+    assert captured == {"day": datetime.date(2020, 1, 2)}
+
+
+def test_date_rejects_bad_value() -> None:
+    def main(day: datetime.date) -> None:
+        del day
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["not-a-date"])
+
+
+def test_date_optional_default_none() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, day: datetime.date | None = None) -> None:
+        captured["day"] = day
+
+    yeetr.run(main, argv=[])
+    assert captured == {"day": None}
+
+
+def test_date_list_option() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, day: list[datetime.date] | None = None) -> None:
+        captured["day"] = day
+
+    yeetr.run(main, argv=["--day", "2020-01-02", "--day", "2021-06-07"])
+    assert captured == {"day": [datetime.date(2020, 1, 2), datetime.date(2021, 6, 7)]}
+
+
+def test_envvar_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, day: Annotated[datetime.date | None, Opt(envvar="DAY")] = None) -> None:
+        captured["day"] = day
+
+    monkeypatch.setenv("DAY", "2020-01-02")
+    yeetr.run(main, argv=[])
+    assert captured == {"day": datetime.date(2020, 1, 2)}
+
+
+def test_time_parsing() -> None:
+    captured: dict[str, object] = {}
+
+    def main(at: datetime.time) -> None:
+        captured["at"] = at
+
+    yeetr.run(main, argv=["03:04:05"])
+    assert captured == {"at": datetime.time(3, 4, 5)}
+
+
+def test_time_rejects_bad_value() -> None:
+    def main(at: datetime.time) -> None:
+        del at
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["not-a-time"])
+
+
+def test_time_optional_default_none() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, at: datetime.time | None = None) -> None:
+        captured["at"] = at
+
+    yeetr.run(main, argv=[])
+    assert captured == {"at": None}
+
+
+def test_time_list_option() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, at: list[datetime.time] | None = None) -> None:
+        captured["at"] = at
+
+    yeetr.run(main, argv=["--at", "03:04:05", "--at", "06:07:08"])
+    assert captured == {"at": [datetime.time(3, 4, 5), datetime.time(6, 7, 8)]}
+
+
+def test_envvar_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, at: Annotated[datetime.time | None, Opt(envvar="AT")] = None) -> None:
+        captured["at"] = at
+
+    monkeypatch.setenv("AT", "03:04:05")
+    yeetr.run(main, argv=[])
+    assert captured == {"at": datetime.time(3, 4, 5)}
+
+
+def test_uuid_parsing() -> None:
+    captured: dict[str, object] = {}
+
+    def main(token: uuid.UUID) -> None:
+        captured["token"] = token
+
+    yeetr.run(main, argv=["00000000-0000-0000-0000-000000000001"])
+    assert captured == {"token": uuid.UUID("00000000-0000-0000-0000-000000000001")}
+
+
+def test_uuid_rejects_bad_value() -> None:
+    def main(token: uuid.UUID) -> None:
+        del token
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["not-a-uuid"])
+
+
+def test_uuid_optional_default_none() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, token: uuid.UUID | None = None) -> None:
+        captured["token"] = token
+
+    yeetr.run(main, argv=[])
+    assert captured == {"token": None}
+
+
+def test_uuid_list_option() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, token: list[uuid.UUID] | None = None) -> None:
+        captured["token"] = token
+
+    yeetr.run(
+        main,
+        argv=[
+            "--token",
+            "00000000-0000-0000-0000-000000000001",
+            "--token",
+            "00000000-0000-0000-0000-000000000002",
+        ],
+    )
+    assert captured == {
+        "token": [
+            uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        ]
+    }
+
+
+def test_envvar_uuid(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, token: Annotated[uuid.UUID | None, Opt(envvar="TOKEN")] = None) -> None:
+        captured["token"] = token
+
+    monkeypatch.setenv("TOKEN", "00000000-0000-0000-0000-000000000001")
+    yeetr.run(main, argv=[])
+    assert captured == {"token": uuid.UUID("00000000-0000-0000-0000-000000000001")}
+
+
+def test_decimal_parsing() -> None:
+    captured: dict[str, object] = {}
+
+    def main(amount: decimal.Decimal) -> None:
+        captured["amount"] = amount
+
+    yeetr.run(main, argv=["1.5"])
+    assert captured == {"amount": decimal.Decimal("1.5")}
+
+
+def test_decimal_rejects_bad_value() -> None:
+    def main(amount: decimal.Decimal) -> None:
+        del amount
+
+    with pytest.raises(SystemExit):
+        yeetr.run(main, argv=["not-a-decimal"])
+
+
+def test_decimal_optional_default_none() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, amount: decimal.Decimal | None = None) -> None:
+        captured["amount"] = amount
+
+    yeetr.run(main, argv=[])
+    assert captured == {"amount": None}
+
+
+def test_decimal_list_option() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, amount: list[decimal.Decimal] | None = None) -> None:
+        captured["amount"] = amount
+
+    yeetr.run(main, argv=["--amount", "1.5", "--amount", "2.5"])
+    assert captured == {"amount": [decimal.Decimal("1.5"), decimal.Decimal("2.5")]}
+
+
+def test_envvar_decimal(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, amount: Annotated[decimal.Decimal | None, Opt(envvar="AMOUNT")] = None) -> None:
+        captured["amount"] = amount
+
+    monkeypatch.setenv("AMOUNT", "1.5")
+    yeetr.run(main, argv=[])
+    assert captured == {"amount": decimal.Decimal("1.5")}
+
+
+def test_tuple_of_dates() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, span: tuple[datetime.date, datetime.date]) -> None:
+        captured["span"] = span
+
+    yeetr.run(main, argv=["--span", "2020-01-02", "2021-06-07"])
+    assert captured == {"span": (datetime.date(2020, 1, 2), datetime.date(2021, 6, 7))}
+
+
+def test_var_positional_decimals() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*amounts: decimal.Decimal) -> None:
+        captured["amounts"] = amounts
+
+    yeetr.run(main, argv=["1.5", "2.5"])
+    assert captured == {"amounts": (decimal.Decimal("1.5"), decimal.Decimal("2.5"))}
 
 
 def test_optional_positional_uses_default_when_omitted() -> None:

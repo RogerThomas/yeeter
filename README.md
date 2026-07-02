@@ -64,9 +64,10 @@ uv add yeetr
 - **Zero boilerplate** — `yeet app.py` finds and runs `main`, and scaffolds
   the file if it doesn't exist yet.
 - **Executable shebangs** — `#!yeet` makes a script runnable on its own.
-- **Fully typed** — `str`, `int`, `float`, `bool`, `Path`, `Literal`, `Enum`,
-  `T | None`, `list[T]`, tuples, and structured `dataclass`/`NamedTuple`
-  args, all Pyright-strict clean.
+- **Fully typed** — `str`, `int`, `float`, `bool`, `Path`, `datetime`,
+  `date`, `time`, `UUID`, `Decimal`, `Literal`, `Enum`, `T | None`,
+  `list[T]`, tuples, and structured `dataclass`/`NamedTuple` args, all
+  Pyright-strict clean.
 - **Async-native** — `async def main` just works, with automatic
   [uvloop](https://github.com/MagicStack/uvloop) if it's installed.
 - **Rich output** — formatted logging and help/error tables out of the box.

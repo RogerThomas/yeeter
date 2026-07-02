@@ -51,6 +51,35 @@ Enums parse from their member values and the function receives the enum
 member (`Format.CSV` in the example above). Choice values are shown in
 help output and invalid values fail during argument parsing.
 
+## Dates, times, UUIDs, and decimals
+
+```python
+import datetime
+import decimal
+import uuid
+
+
+def main(
+    day: datetime.date,
+    *,
+    started: datetime.datetime | None = None,
+    at: datetime.time | None = None,
+    token: uuid.UUID | None = None,
+    amount: decimal.Decimal = decimal.Decimal("0"),
+) -> None:
+    ...
+```
+
+```bash
+yeet app.py 2025-06-01 --started 2025-06-01T09:30:00 --at 09:30:00 \
+  --token 8b0d1f52-9a45-4a7e-9c3b-2f6a1d2e3f40 --amount 19.99
+```
+
+`datetime.datetime`, `datetime.date`, and `datetime.time` parse ISO 8601
+strings via `fromisoformat`. `uuid.UUID` and `decimal.Decimal` parse their
+standard string forms. Invalid values fail during argument parsing with a
+clear error.
+
 ## Tuples
 
 ```python
@@ -102,9 +131,11 @@ supported.
 
 ## Supported Primitives
 
-`str`, `int`, `float`, `bool`, `pathlib.Path`, `typing.Literal[...]`,
-`enum.Enum` subclasses, `T | None`, `list[T]`, `tuple[T, U]`, and
-`tuple[T, ...]`. Anything else raises a clear `YeetrError`.
+`str`, `int`, `float`, `bool`, `pathlib.Path`, `datetime.datetime`,
+`datetime.date`, `datetime.time`, `uuid.UUID`, `decimal.Decimal`,
+`typing.Literal[...]`, `enum.Enum` subclasses, `T | None`, `list[T]`,
+`tuple[T, U]`, and `tuple[T, ...]`. Anything else raises a clear
+`YeetrError`.
 
 ## Next steps
 
