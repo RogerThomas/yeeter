@@ -1516,6 +1516,82 @@ def test_parser_envvar(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured == {"value": 6}
 
 
+def _keyword_only_parser(*, value: int) -> int:
+    return value
+
+
+def _bool_input_parser(value: bool) -> str:  # noqa: FBT001
+    return str(value)
+
+
+def _list_input_parser(value: list[str]) -> str:
+    return ",".join(value)
+
+
+def _quoted_annotation_parser(value: "int") -> int:
+    return value * 2
+
+
+@dataclass(slots=True)
+class _MultiplierParser:
+    factor: int
+
+    def __call__(self, value: "int") -> int:
+        return value * self.factor
+
+
+def test_parser_without_introspectable_signature_rejected() -> None:
+    def main(*, value: Annotated[str, Opt(parser=min)]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="must take exactly one argument"):
+        yeetr.run(main, argv=["--value", "x"])
+
+
+def test_parser_keyword_only_param_rejected() -> None:
+    def main(*, value: Annotated[int, Opt(parser=_keyword_only_parser)]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="must take exactly one argument"):
+        yeetr.run(main, argv=["--value", "1"])
+
+
+def test_parser_bool_input_type_rejected() -> None:
+    def main(*, value: Annotated[str, Opt(parser=_bool_input_parser)]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="not supported"):
+        yeetr.run(main, argv=["--value", "true"])
+
+
+def test_parser_list_input_type_rejected() -> None:
+    def main(*, value: Annotated[str, Opt(parser=_list_input_parser)]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match="not supported"):
+        yeetr.run(main, argv=["--value", "x"])
+
+
+def test_parser_string_annotation_resolved() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, value: Annotated[int, Opt(parser=_quoted_annotation_parser)]) -> None:
+        captured["value"] = value
+
+    yeetr.run(main, argv=["--value", "3"])
+    assert captured == {"value": 6}
+
+
+def test_parser_callable_object() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, value: Annotated[int, Opt(parser=_MultiplierParser(3))]) -> None:
+        captured["value"] = value
+
+    yeetr.run(main, argv=["--value", "2"])
+    assert captured == {"value": 6}
+
+
 def _write_demo(tmp_path: Path) -> Path:
     file = tmp_path / "demo.py"
     file.write_text(
@@ -1806,3 +1882,107 @@ def test_yeet_cli_non_function_main_rejected(
         yeet_main([str(file)])
     assert exc.value.code == 2
     assert "has no public function 'main' to run" in capsys.readouterr().err
+
+
+def test_yeet_cli_optional_str_main_is_ambiguous(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def thing() -> None:\n"
+        "    print('ran thing')\n"
+        "\n"
+        "def main(arg: str | None = None) -> None:\n"
+        "    print(f'main got {arg!r}')\n",
+    )
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(file), "thing"])
+    assert exc.value.code == 2
+    assert "ambiguous" in capsys.readouterr().err
+
+
+def test_yeet_cli_dispatches_function_when_main_missing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text("def thing() -> None:\n    print('ran thing')\n")
+    yeet_main([str(file), "thing"])
+    assert "ran thing" in capsys.readouterr().out
+
+
+def test_yeet_cli_unresolvable_main_hints_not_ambiguous(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def thing() -> None:\n"
+        "    print('ran thing')\n"
+        "\n"
+        "def main(arg: 'Nope') -> None:\n"
+        "    del arg\n",
+    )
+    yeet_main([str(file), "thing"])
+    assert "ran thing" in capsys.readouterr().out
+
+
+def test_yeet_cli_keyword_only_main_not_ambiguous(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def thing() -> None:\n"
+        "    print('ran thing')\n"
+        "\n"
+        "def main(*, n: int = 1) -> None:\n"
+        "    print(f'main n={n}')\n",
+    )
+    yeet_main([str(file), "thing"])
+    assert "ran thing" in capsys.readouterr().out
+
+
+def test_yeet_cli_var_keyword_main_not_ambiguous(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def thing() -> None:\n"
+        "    print('ran thing')\n"
+        "\n"
+        "def main(**kwargs: str) -> None:\n"
+        "    del kwargs\n",
+    )
+    yeet_main([str(file), "thing"])
+    assert "ran thing" in capsys.readouterr().out
+
+
+def test_yeet_cli_zero_param_main_not_ambiguous(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def thing() -> None:\n"
+        "    print('ran thing')\n"
+        "\n"
+        "def main() -> None:\n"
+        "    print('ran main')\n",
+    )
+    yeet_main([str(file), "thing"])
+    assert "ran thing" in capsys.readouterr().out
