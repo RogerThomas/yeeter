@@ -1,23 +1,25 @@
 # Release Strategy
 
-`yeetr` releases run entirely in CI. Nothing mutating happens on a developer
-machine — a single dispatchable GitHub Actions workflow bumps the version,
-tags, publishes to PyPI, and deploys the docs. The GitHub repository is
-`RogerThomas/yeetr`, the published PyPI distribution is `yeetr`, and the
-import package remains `yeetr`.
+`yeetr` releases run entirely in CI and are driven by **git tags** — the tag
+*is* the version (via `hatch-vcs`; see `pyproject.toml`). A release never
+commits to `main`, so it never fights branch protection, needs no tokens, and
+requires no protection bypass. The GitHub repository is `RogerThomas/yeetr`,
+the published PyPI distribution is `yeetr`, and the import package remains
+`yeetr`.
 
 ## Overview
 
-1. Run `task release` (or dispatch the **release** workflow from the Actions tab).
-   `task release` only calls `gh workflow run release.yml` — it performs no
-   local git operations.
+1. Run `task release` (or dispatch the **release** workflow from the Actions
+   tab). `task release` only calls `gh workflow run release.yml` — it performs
+   no local git operations.
 2. The `release` workflow, on a GitHub runner:
-   - computes the next CalVer version (or uses the `version` input),
-   - bumps `pyproject.toml`, updates `uv.lock`, commits, and pushes `main`,
-   - creates the matching GitHub Release (and tag),
-   - verifies the resolved version, builds, and publishes to PyPI via Trusted
-     Publishing (OIDC), and
-   - builds and deploys the documentation to GitHub Pages.
+   - runs the shared `checks` workflow (quality + tests + docs) as a gate — a
+     broken commit cannot be released;
+   - computes the next CalVer version (or uses the `version` input) and creates
+     the matching tag on `main`'s current HEAD;
+   - builds the package (the version is derived from that tag) and publishes to
+     PyPI via Trusted Publishing (OIDC);
+   - pushes the tag, creates the GitHub Release, and deploys the documentation.
 
 To release a specific version instead of the auto-computed one:
 
@@ -25,14 +27,29 @@ To release a specific version instead of the auto-computed one:
 task release -- 2026.5.21.post1
 ```
 
+## Why tag-based
+
+The version lives only in git tags, so there is no version field to bump and
+no commit to push to `main`. That removes the entire class of problems around
+pushing to a protected branch from CI — no PAT, no GitHub App, no protection
+bypass. `main` stays fully protected; the release only ever pushes a tag, and
+tags are not branch-protected.
+
+## Quality gate
+
+`checks.yml` is a reusable workflow (`workflow_call`) holding the quality,
+test, and docs jobs. Both `main.yml` (on every push/PR) and `release.yml` (as
+a release gate) call it, so the checks that must pass before a release are the
+exact same definition that runs on PRs — no duplicated, driftable copy.
+
 ## Publishing to PyPI (Trusted Publishing / OIDC)
 
-There is no PyPI API token to store or rotate. PyPI is configured to trust
-the `release` workflow directly:
+There is no PyPI API token to store or rotate. PyPI is configured to trust the
+`release` workflow directly:
 
 - **PyPI Trusted Publisher** — configured on the `yeetr` project with owner
-  `RogerThomas`, repository `yeetr`, workflow **`release.yml`**, and
-  environment `pypi`.
+  `RogerThomas`, repository `yeetr`, workflow **`release.yml`**, and environment
+  `pypi`.
 - **GitHub environment** — an environment named `pypi` gates the publish job.
 
 At publish time the workflow requests a short-lived OIDC token
@@ -41,19 +58,19 @@ publishes. Nothing long-lived is stored.
 
 ## Workflow split
 
-- `release.yml` (`workflow_dispatch`) cuts the release and publishes + deploys.
-- `main.yml` runs on normal PRs.
+- `checks.yml` — reusable quality/tests/docs checks.
+- `main.yml` — calls `checks.yml` on every push and PR.
+- `release.yml` (`workflow_dispatch`) — gate on `checks.yml`, then tag, publish, deploy.
 
 ## Operational requirements
 
-- Repository Actions settings must allow GitHub Actions to create and approve
-  deployments, and to push to `main` (the `release` job pushes the version-bump
-  commit; `main`'s branch protection must permit the `github-actions` bot to
-  push, or the release job will fail at that step).
 - A PyPI Trusted Publisher and a GitHub `pypi` environment must be configured
   (see above).
+- `main`'s required status checks must reference the reusable-workflow job names
+  (e.g. `checks / quality`, `checks / tests-and-type-check (3.13)`), not the old
+  bare `quality`, or PR merges will block on a check that never reports.
 
 ## Expected release path
 
 - `task release`
-- wait for the `release` workflow to bump, publish to PyPI, and deploy docs
+- wait for the `release` workflow to gate, tag, publish to PyPI, and deploy docs

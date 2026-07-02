@@ -8,74 +8,9 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  quality:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out
-        uses: actions/checkout@v7
-
-      - uses: actions/cache@v6
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
-
-      - name: Set up the environment
-        uses: ./.github/actions/setup-python-env
-
-      - name: Check lock file consistency
-        run: uv lock --locked
-
-      - name: Lint with pre-commit
-        run: uv run prek run -a
-
-      - name: Static type-check with pyright
-        run: uv run pyright
-
-      - name: Check for obsolete dependencies
-        run: uv run deptry .
-
-  tests-and-type-check:
-    runs-on: ubuntu-latest
+  checks:
+    uses: ./.github/workflows/checks.yml
     permissions:
       contents: read
       id-token: write
-    strategy:
-      matrix:
-        python-version: ["3.13", "3.14"]
-      fail-fast: false
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Check out
-        uses: actions/checkout@v7
-
-      - name: Set up the environment
-        uses: ./.github/actions/setup-python-env
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Run tests
-        run: uv run python -m pytest tests --cov --cov-config=pyproject.toml --cov-report=xml
-
-      - name: Check typing
-        run: uv run pyright
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: true
-          use_oidc: true
-
-  check-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out
-        uses: actions/checkout@v7
-
-      - name: Set up the environment
-        uses: ./.github/actions/setup-python-env
-
-      - name: Check if documentation can be built
-        run: uv run yeet scripts/build_docs.py --strict
+    secrets: inherit

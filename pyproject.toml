@@ -1,6 +1,6 @@
 [project]
 name = "yeetr"
-version = "2026.7.2"
+dynamic = ["version"]
 description = "A tiny, typed, signature-driven CLI runner."
 authors = [{ name = "yeetr", email = "noreply@example.com" }]
 readme = "README.md"
@@ -44,12 +44,17 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.11.0,<0.12.0"]
-build-backend = "uv_build"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
-[tool.uv.build-backend]
-module-name = "yeetr"
-module-root = ""
+# The git tag is the single source of truth for the version. A release is just
+# a pushed CalVer tag (e.g. 2026.7.2.post1); hatch-vcs derives the version from
+# it. Nothing is committed to `main`, so releases never fight branch protection.
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["yeetr"]
 
 [tool.pyright]
 include = ["yeetr", "tests"]

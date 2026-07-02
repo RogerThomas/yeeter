@@ -1,15 +1,16 @@
 # Releases
 
-`yeetr` uses CalVer based on the release date. Versions are published in
+`yeetr` uses CalVer based on the release date, and the git **tag is the
+version** (derived at build time by `hatch-vcs`). Versions are published in
 PEP 440 canonical form as `YYYY.M.D`, so a release on 2026-05-21 is
 `2026.5.21`; multiple releases on the same day use `.postN`, for example
 `2026.5.21.post1`.
 
 Run `task release`. It does no local git work — it just dispatches the
-`release` workflow on GitHub. That workflow, on a CI runner, computes the
-next CalVer version, bumps `pyproject.toml`, updates the lock file,
-commits and pushes `main`, creates the matching GitHub Release, publishes
-the package to PyPI, and deploys the documentation.
+`release` workflow on GitHub. That workflow, on a CI runner, runs the full
+quality/test gate, computes the next CalVer version, creates the matching
+git tag (no commit to `main`), builds and publishes the package to PyPI,
+creates the GitHub Release, and deploys the documentation.
 
 To release a specific version instead of the auto-computed one, pass it
 explicitly:

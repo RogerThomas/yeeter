@@ -1,43 +1,53 @@
 #!yeet
-"""Print the next CalVer release version based on the current pyproject version.
+"""Print the next CalVer release tag, based on the existing git tags.
 
 Versions are ``YYYY.M.D`` for the first release on a given day, then
-``YYYY.M.D.postN`` for subsequent same-day releases.
+``YYYY.M.D.postN`` for subsequent same-day releases. The git tag is the
+single source of truth for the version, so the next release is derived from
+the tags that already exist rather than from any committed version field.
 """
 
 import datetime as dt
 import re
-import tomllib
-from pathlib import Path
+import subprocess
 
-_VERSION_RE = re.compile(
-    r"(?P<year>\d{4})\.(?P<month>\d{1,2})\.(?P<day>\d{1,2})(?:\.post(?P<post>\d+))?",
-)
+_TAG_RE = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.post(\d+))?$")
 
 
-def _determine_next_release_version(current_version: str, release_date: dt.date) -> str:
-    """Return the next CalVer version for ``release_date`` after ``current_version``."""
-    today = f"{release_date.year}.{release_date.month}.{release_date.day}"
-    match = _VERSION_RE.fullmatch(current_version)
-    if match is None:
-        return today
-
-    current_date = dt.date(
-        year=int(match["year"]),
-        month=int(match["month"]),
-        day=int(match["day"]),
+def _existing_tags() -> list[str]:
+    result = subprocess.run(
+        ["git", "tag", "--list"],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=True,
     )
-    if current_date != release_date:
-        return today
+    return result.stdout.split()
 
-    current_post = match["post"]
-    if current_post is None:
-        return f"{today}.post1"
-    return f"{today}.post{int(current_post) + 1}"
+
+def _determine_next_release_version(tags: list[str], release_date: dt.date) -> str:
+    """Return the next CalVer version for ``release_date`` given existing ``tags``."""
+    today = f"{release_date.year}.{release_date.month}.{release_date.day}"
+    today_parts = (release_date.year, release_date.month, release_date.day)
+    posts: list[int] = []
+    base_exists = False
+    for tag in tags:
+        match = _TAG_RE.match(tag)
+        if match is None:
+            continue
+        year, month, day, post = match.groups()
+        if (int(year), int(month), int(day)) != today_parts:
+            continue
+        if post is None:
+            base_exists = True
+        else:
+            posts.append(int(post))
+
+    if not base_exists and not posts:
+        return today
+    next_post = max(posts) + 1 if posts else 1
+    return f"{today}.post{next_post}"
 
 
 def main() -> None:
     """Print the next CalVer version for today's date."""
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-    current_version = pyproject["project"]["version"]
-    print(_determine_next_release_version(current_version, dt.datetime.now(tz=dt.UTC).date()))
+    print(_determine_next_release_version(_existing_tags(), dt.datetime.now(tz=dt.UTC).date()))
