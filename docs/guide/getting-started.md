@@ -23,12 +23,13 @@ script for you, mark it executable, and print the created path. Run the
 same command a second time, or call `./app.py` directly, and it will
 execute normally.
 
-The default function name is `main`. Pass a different one to pick another
-top-level function in the same file:
+The default function name is `main`. To run another function, name it — the
+target must be a **public** `def`/`async def` defined in that file (not an
+import, a class, or a `_`-prefixed helper):
 
 ```python
 # app.py
-def main(...) -> None: ...
+def main(thing: int) -> None: ...
 def greet(name: str, *, loud: bool = False) -> None: ...
 ```
 
@@ -36,8 +37,21 @@ def greet(name: str, *, loud: bool = False) -> None: ...
 yeet app.py greet world --loud
 ```
 
+Because the `.py` file identifies itself, the function can also come first or
+be attached with a colon — pick whichever reads best:
+
+```bash
+yeet greet app.py world --loud   # function first
+yeet app.py:greet world --loud   # FILE:FUNC
+```
+
+If `main` takes a **string** first argument, a bare `yeet app.py greet` is
+genuinely ambiguous — `greet` could be the function to run *or* a value for
+`main` — so yeetr raises instead of guessing. Disambiguate with
+`yeet app.py main greet` (pass it to `main`) or the `app.py:greet` /
+function-first forms (run `greet`).
+
 `yeet app.py --help` prints the **target function's** help, not yeet's.
-`yeet` itself only has `yeet FILE [FUNC] [args...]`.
 
 You can still use the explicit `yeetr.run(main)` form when you prefer —
 the `yeet` script is just sugar on top of it.
@@ -95,8 +109,8 @@ chmod +x greet.py
 ./greet.py world --loud
 ```
 
-If you need a different entry function, keep the shebang simple and call
-`uv run yeet app.py other_func ...` explicitly instead.
+To make the script run a function other than `main`, name it in the shebang —
+`#!yeet greet` — and running `./greet.py ...` invokes that function directly.
 
 ## Next steps
 

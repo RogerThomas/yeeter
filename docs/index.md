@@ -70,7 +70,8 @@ Parameters **before** the bare `*` become positional CLI args. Parameters
 ## Where to go next
 
 - [Getting Started](guide/getting-started.md) — installation, the `yeet`
-  script, the explicit `yeetr.run(main)` form, and executable shebangs.
+  script and how it picks the function to run, the explicit `yeetr.run(main)`
+  form, and executable shebangs.
 - [Async Support](guide/async.md) — `async def main`, handled natively.
 - [Parameter Types](guide/parameter-types.md) — every type yeetr understands,
   from `Path` to `Enum` to tuples and variadic `*args`.

@@ -1666,7 +1666,7 @@ def test_yeet_cli_errors_when_target_function_missing(
         yeet_main([str(file)])
     assert exc.value.code == 2
     err = capsys.readouterr().err
-    assert "has no callable attribute 'main'" in err
+    assert "has no public function 'main' to run" in err
 
 
 def test_yeet_cli_errors_when_named_attribute_is_not_callable(
@@ -1681,7 +1681,7 @@ def test_yeet_cli_errors_when_named_attribute_is_not_callable(
         yeet_main([str(file), "thing"])
     assert exc.value.code == 2
     err = capsys.readouterr().err
-    assert "has no callable attribute 'main'" in err
+    assert "has no public function 'main' to run" in err
 
 
 def test_yeet_cli_keeps_non_callable_candidate_as_argument(
@@ -1697,3 +1697,112 @@ def test_yeet_cli_keeps_non_callable_candidate_as_argument(
     yeet_main([str(file), "thing"])
     out = capsys.readouterr().out
     assert "thing" in out
+
+
+def _write_thing_and_str_main(tmp_path: Path) -> Path:
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def thing() -> None:\n"
+        "    print('ran thing')\n"
+        "\n"
+        "def main(arg: str) -> None:\n"
+        "    print(f'main got {arg!r}')\n",
+    )
+    return file
+
+
+def test_yeet_cli_ambiguous_function_and_str_main_errors(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = _write_thing_and_str_main(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(file), "thing"])
+    assert exc.value.code == 2
+    assert "ambiguous" in capsys.readouterr().err
+
+
+def test_yeet_cli_explicit_main_escapes_ambiguity(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = _write_thing_and_str_main(tmp_path)
+    yeet_main([str(file), "main", "thing"])
+    assert "main got 'thing'" in capsys.readouterr().out
+
+
+def test_yeet_cli_imported_callable_is_not_dispatched(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "from logging import getLogger\n"
+        "\n"
+        "def main(arg: str) -> None:\n"
+        "    print(f'main got {arg!r}')\n",
+    )
+    # `getLogger` is imported, not defined here -> treated as main's value, not run.
+    yeet_main([str(file), "getLogger"])
+    assert "main got 'getLogger'" in capsys.readouterr().out
+
+
+def test_yeet_cli_private_function_is_not_dispatched(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text(
+        "def _secret() -> None:\n"
+        "    print('secret')\n"
+        "\n"
+        "def main(arg: str) -> None:\n"
+        "    print(f'main got {arg!r}')\n",
+    )
+    yeet_main([str(file), "_secret"])
+    assert "main got '_secret'" in capsys.readouterr().out
+
+
+def test_yeet_cli_function_before_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = _write_thing_and_str_main(tmp_path)
+    # `yeet FUNC FILE` — the form a `#!yeet thing` shebang produces.
+    yeet_main(["thing", str(file)])
+    assert "ran thing" in capsys.readouterr().out
+
+
+def test_yeet_cli_file_colon_function(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = _write_thing_and_str_main(tmp_path)
+    yeet_main([f"{file}:thing"])
+    assert "ran thing" in capsys.readouterr().out
+
+
+def test_yeet_cli_non_function_main_rejected(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yeetr._cli import main as yeet_main
+
+    file = tmp_path / "demo.py"
+    file.write_text("class main:\n    pass\n")
+    with pytest.raises(SystemExit) as exc:
+        yeet_main([str(file)])
+    assert exc.value.code == 2
+    assert "has no public function 'main' to run" in capsys.readouterr().err
