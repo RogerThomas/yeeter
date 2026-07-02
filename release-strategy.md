@@ -1,46 +1,59 @@
 # Release Strategy
 
-`yeetr` uses a PR-based preparation flow with tag-driven releases. The GitHub repository is `RogerThomas/yeetr`, the published PyPI distribution is `yeetr`, and the import package remains `yeetr`. A small local script creates the release branch and PR, and GitHub Actions creates the GitHub Release when a matching CalVer tag is pushed.
+`yeetr` releases run entirely in CI. Nothing mutating happens on a developer
+machine — a single dispatchable GitHub Actions workflow bumps the version,
+tags, publishes to PyPI, and deploys the docs. The GitHub repository is
+`RogerThomas/yeetr`, the published PyPI distribution is `yeetr`, and the
+import package remains `yeetr`.
 
 ## Overview
 
-1. Run `task release`.
-2. A bash script creates `release/{TAG}`, bumps `pyproject.toml`, runs `task deps-lock`, commits the changes, pushes the branch, and opens the PR.
-3. Merge the release PR into `main`.
-4. Create and push the release tag, for example `git tag 2026.5.21.post1 && git push origin 2026.5.21.post1`.
-5. GitHub Actions validates the tag, checks that it matches `project.version`, and creates the GitHub Release.
-5. The published release triggers a separate workflow that deploys docs.
+1. Run `task release` (or dispatch the **release** workflow from the Actions tab).
+   `task release` only calls `gh workflow run release.yml` — it performs no
+   local git operations.
+2. The `release` workflow, on a GitHub runner:
+   - computes the next CalVer version (or uses the `version` input),
+   - bumps `pyproject.toml`, updates `uv.lock`, commits, and pushes `main`,
+   - creates the matching GitHub Release (and tag),
+   - verifies the resolved version, builds, and publishes to PyPI via Trusted
+     Publishing (OIDC), and
+   - builds and deploys the documentation to GitHub Pages.
 
-## Direct release path
+To release a specific version instead of the auto-computed one:
 
-If you need to bypass the PR flow:
+```bash
+task release -- 2026.5.21.post1
+```
 
-1. Run `task release-direct`.
-2. The script switches to `main`, fast-forwards it from `origin/main`, bumps `pyproject.toml`, runs `task deps-lock`, commits the release, pushes `main`, creates the matching tag, and pushes the tag.
-3. GitHub Actions validates the tag, creates the GitHub Release, and the published release deploys docs.
+## Publishing to PyPI (Trusted Publishing / OIDC)
 
-## Why this exists
+There is no PyPI API token to store or rotate. PyPI is configured to trust
+the `release` workflow directly:
 
-`main` can stay branch-protected. The release branch is the review gate, and the pushed tag is the explicit release trigger.
+- **PyPI Trusted Publisher** — configured on the `yeetr` project with owner
+  `RogerThomas`, repository `yeetr`, workflow **`release.yml`**, and
+  environment `pypi`.
+- **GitHub environment** — an environment named `pypi` gates the publish job.
+
+At publish time the workflow requests a short-lived OIDC token
+(`id-token: write`), exchanges it for a temporary PyPI upload token, and
+publishes. Nothing long-lived is stored.
 
 ## Workflow split
 
-- `scripts/release.sh` creates the release branch and PR.
-- `scripts/release_direct.sh` releases directly from `main`.
-- `release.yml` handles pushed CalVer tags and creates the GitHub Release.
-- `release-publish.yml` handles docs deployment after the GitHub Release is published.
-- `main.yml` still runs on normal PRs.
+- `release.yml` (`workflow_dispatch`) cuts the release and publishes + deploys.
+- `main.yml` runs on normal PRs.
 
 ## Operational requirements
 
-- Repository Actions settings must allow GitHub Actions to create releases.
-- A repository secret named `GH_RELEASE_TOKEN` must contain a token with permission to create GitHub Releases.
-- Normal PRs that touch `pyproject.toml` or `uv.lock` do not become releases.
+- Repository Actions settings must allow GitHub Actions to create and approve
+  deployments, and to push to `main` (the `release` job pushes the version-bump
+  commit; `main`'s branch protection must permit the `github-actions` bot to
+  push, or the release job will fail at that step).
+- A PyPI Trusted Publisher and a GitHub `pypi` environment must be configured
+  (see above).
 
 ## Expected release path
 
 - `task release`
-- merge the release PR
-- create and push the release tag
-- wait for GitHub Actions to create the release
-- wait for the published-release workflow to deploy docs
+- wait for the `release` workflow to bump, publish to PyPI, and deploy docs

@@ -35,7 +35,7 @@ tasks:
     deps: [clean-build]
     cmds:
       - 'echo "🚀 Creating wheel file"'
-      - uvx --from build pyproject-build --installer uv
+      - uv build
 
   clean-build:
     desc: Clean build artifacts
@@ -45,11 +45,11 @@ tasks:
       - 'uv run python -c "import shutil; import os; shutil.rmtree(''dist'') if os.path.exists(''dist'') else None"'
 
   publish:
-    desc: Publish a release to PyPI
+    desc: 'Publish to PyPI manually (CI publishes automatically via OIDC on release; this is a fallback).'
     cmds:
       - cmd: 'echo "🚀 Publishing."'
         silent: true
-      - uvx twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
+      - uv publish
 
   build-and-publish:
     desc: Build and publish
@@ -58,14 +58,17 @@ tasks:
       - task: publish
 
   release:
-    desc: Create the release PR
+    desc: 'Trigger the release workflow on GitHub (CI bumps CalVer, publishes to PyPI, and deploys docs). Nothing runs locally. Usage: task release [-- VERSION]'
     cmds:
-      - bash ./scripts/release.sh {{.CLI_ARGS}}
-
-  release-direct:
-    desc: Create and push a release directly from main
-    cmds:
-      - bash ./scripts/release_direct.sh {{.CLI_ARGS}}
+      - |
+        set -eu
+        version="{{.CLI_ARGS}}"
+        if [ -n "$version" ]; then
+          gh workflow run release.yml --ref main -f version="$version"
+        else
+          gh workflow run release.yml --ref main
+        fi
+        echo "Release workflow dispatched. Follow it with:  gh run watch  (or the Actions tab)."
 
   docs-test:
     desc: Test if documentation can be built without warnings or errors

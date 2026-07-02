@@ -1,67 +1,95 @@
 name: release
 
-permissions:
-  contents: write
-
+# Manually dispatched (locally via `task release`, or from the Actions tab).
+# Cuts a CalVer release entirely in CI — bump, commit, tag, publish, deploy —
+# so nothing mutating runs on a developer machine.
 on:
-  push:
-    tags:
-      - "*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Explicit version (leave blank for the next CalVer for today)"
+        required: false
+        default: ""
 
 jobs:
-  create-release:
-    runs-on: ubuntu-24.04
+
+  release:
+    runs-on: ubuntu-latest
+    # Trusted Publishing (OIDC) — no PyPI token. The environment name must match
+    # the one configured on the PyPI publisher ("pypi").
+    environment:
+      name: pypi
+      url: https://pypi.org/p/yeetr
+    permissions:
+      contents: write   # push the version-bump commit and create the release
+      id-token: write   # OIDC token for PyPI Trusted Publishing
+    outputs:
+      version: ${{ steps.cut.outputs.version }}
     steps:
       - name: Check out
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.ref_name }}
+          ref: main
+          fetch-depth: 0
 
-      - name: Validate release tag name
-        run: |
-          tag_name="${{ github.ref_name }}"
-          if [[ ! "${tag_name}" =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}(\.post[0-9]+)?$ ]]; then
-            echo "Invalid release tag: ${tag_name}" >&2
-            exit 1
-          fi
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
 
-      - name: Read release version
-        id: read-version
-        run: |
-          release_version="$(python3 - <<'PY'
-          import tomllib
-          from pathlib import Path
-
-          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
-          print(pyproject["project"]["version"])
-          PY
-          )"
-          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: $release_version"
-
-      - name: Validate tag matches project version
-        run: |
-          if [[ "${{ github.ref_name }}" != "${{ steps.read-version.outputs.release_version }}" ]]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match project version ${{ steps.read-version.outputs.release_version }}" >&2
-            exit 1
-          fi
-
-      - name: Check whether the release already exists
-        id: release-check
+      - name: Cut the release
+        id: cut
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${{ steps.read-version.outputs.release_version }}" >/dev/null 2>&1; then
-            echo "release_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          version="${{ github.event.inputs.version }}"
+          version="${version:-$(uv run yeet scripts/next_version.py)}"
+          uv version "$version"
+          uv lock
+          resolved="$(uv version --short)"
+          if [ "$resolved" != "$version" ]; then
+            echo "::error::resolved version $resolved does not match requested $version"
+            exit 1
           fi
+          git commit -am "release $version"
+          git push origin HEAD:main
+          gh release create "$version" --target main --title "$version" --generate-notes
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release
-        if: ${{ steps.release-check.outputs.release_exists == 'false' }}
-        env:
-          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
-        run: |
-          gh release create "${{ steps.read-version.outputs.release_version }}" \
-            --generate-notes \
-            --verify-tag
+      - name: Build package
+        run: uv build
+
+      - name: Publish package
+        run: uv publish
+
+  deploy-docs:
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version }}
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Build documentation
+        run: uv run yeet scripts/build_docs.py --clean
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
