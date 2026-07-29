@@ -74,7 +74,7 @@ uv add yeetr
 - **Rich output** — formatted logging and help/error tables out of the box.
 
 <p align="center">
-  <img class="no-radius" src="docs/assets/yeetr-help.png" alt="yeetr help output" width="900">
+  <img class="no-radius" src="https://raw.githubusercontent.com/RogerThomas/yeetr/main/docs/assets/yeetr-help.png" alt="yeetr help output" width="900">
 </p>
 
 ## Docs
