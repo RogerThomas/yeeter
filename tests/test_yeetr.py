@@ -830,6 +830,7 @@ type _Count = int
 type _MaybeInt = int | None
 type _AliasChain = _Workers
 type _BoolAlias = bool
+type _ModelCode = Literal["nl2", "ch4"]
 
 
 def test_type_alias_annotated_param() -> None:
@@ -916,6 +917,32 @@ def test_type_alias_outer_opt_overrides() -> None:
 
     yeetr.run(main, argv=["--workers", "2"])
     assert captured == {"workers": 2}
+
+
+def test_type_alias_in_list() -> None:
+    captured: dict[str, object] = {}
+
+    def main(*, models: list[_ModelCode] | None = None) -> None:
+        captured["models"] = models
+
+    yeetr.run(main, argv=["--models", "nl2", "--models", "ch4"])
+    assert captured == {"models": ["nl2", "ch4"]}
+
+
+def test_unsupported_type_errors_when_building_parser() -> None:
+    def main(*, value: dict[str, str]) -> None:
+        del value
+
+    with pytest.raises(YeetrError, match=r"Parameter 'value' has unsupported type 'dict'\."):
+        yeetr.run(main, argv=[])
+
+
+def test_metadata_on_list_item_errors_when_building_parser() -> None:
+    def main(*, values: list[Annotated[str, Opt(alias="v")]]) -> None:
+        del values
+
+    with pytest.raises(YeetrError, match="collection item"):
+        yeetr.run(main, argv=[])
 
 
 def test_var_positional_zero_or_more() -> None:

@@ -257,6 +257,53 @@ def _unwrap_annotated(annotation: Any) -> tuple[Any, Arg | Opt | None]:
     return annotation, metadata
 
 
+def _resolved_collection_item_type(annotation: Any, param_name: str) -> Any:
+    item_type, metadata = _unwrap_annotated(annotation)
+    if metadata is not None:
+        raise YeetrError(
+            f"Parameter {param_name!r} has `Arg` or `Opt` metadata on a collection item; "
+            "put it on the parameter annotation instead."
+        )
+    return item_type
+
+
+def _validate_supported_scalar_type(target: Any, param_name: str) -> None:
+    target = _resolve_type_alias(target)
+    if get_origin(target) is Literal:
+        return
+    if target in {
+        str,
+        int,
+        float,
+        Path,
+        bool,
+        datetime.datetime,
+        datetime.date,
+        datetime.time,
+        uuid.UUID,
+        decimal.Decimal,
+    } or _is_enum_type(target):
+        return
+    raise YeetrError(f"Parameter {param_name!r} has unsupported type {_type_name(target)!r}.")
+
+
+def _validate_parameter_types(
+    effective: Any, is_list: bool, is_tuple: bool, param_name: str
+) -> None:
+    if is_list:
+        (item_type,) = get_args(effective)
+        item_type = _resolved_collection_item_type(item_type, param_name)
+        _validate_supported_scalar_type(item_type, param_name)
+        return
+    if is_tuple:
+        for item_type in _tuple_inner_types(effective):
+            _validate_supported_scalar_type(
+                _resolved_collection_item_type(item_type, param_name), param_name
+            )
+        return
+    _validate_supported_scalar_type(effective, param_name)
+
+
 def _field_default(field_info: Any) -> tuple[bool, Any]:
     if field_info.default is not MISSING:
         return True, field_info.default
@@ -327,9 +374,12 @@ def _validate_path_checks_target(
         return
     if is_list:
         (inner_t,) = get_args(effective)
-        targets = (inner_t,)
+        targets = (_resolved_collection_item_type(inner_t, param_name),)
     elif is_tuple:
-        targets = _tuple_inner_types(effective)
+        targets = tuple(
+            _resolved_collection_item_type(inner_t, param_name)
+            for inner_t in _tuple_inner_types(effective)
+        )
     else:
         targets = (effective,)
     invalid = [target for target in targets if target is not Path]
@@ -422,6 +472,7 @@ def _coerce_enum_value(raw: str, target: Any, param_name: str) -> enum.Enum:
 
 
 def _coerce_nested_value(raw: str, target: Any, param_name: str) -> Any:
+    target = _resolve_type_alias(target)
     origin = get_origin(target)
     if origin is Literal:
         return _literal_caster(get_args(target), param_name)(raw)
@@ -656,6 +707,9 @@ def _add_parameter(  # pylint: disable=too-many-locals
     is_literal = custom_parser is None and origin is Literal
     is_enum = custom_parser is None and _is_enum_type(effective)
 
+    if custom_parser is None:
+        _validate_parameter_types(effective, is_list, is_tuple, param.name)
+
     help_text = metadata.help if metadata is not None else None
     metavar = metadata.metavar if metadata is not None else None
 
@@ -860,6 +914,7 @@ def _add_option(  # pylint: disable=too-many-arguments,too-many-branches,too-man
 
     if is_list:
         (inner_t,) = get_args(effective)
+        inner_t = _resolved_collection_item_type(inner_t, param_name)
         if envvar_active:
             list_default = _UNSET
         else:
@@ -962,6 +1017,7 @@ def _add_positional(  # pylint: disable=too-many-arguments
 
     if is_list:
         (inner_t,) = get_args(effective)
+        inner_t = _resolved_collection_item_type(inner_t, param_name)
         kwargs = {
             "type": _type_caster(inner_t, param_name, path_checks),
             "nargs": "*" if has_default else "+",
