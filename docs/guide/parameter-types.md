@@ -28,6 +28,24 @@ def main(*, format: Literal["json", "csv"] = "json") -> None:
 yeet app.py --format csv
 ```
 
+PEP 695 type aliases work anywhere their underlying type works, including
+collection elements:
+
+```python
+from typing import Literal
+
+
+type ModelCode = Literal["nl2", "ch4"]
+
+
+def main(*, models: list[ModelCode] | None = None) -> None:
+    ...
+```
+
+```bash
+yeet app.py --models nl2 --models ch4
+```
+
 ## Enum choices
 
 ```python

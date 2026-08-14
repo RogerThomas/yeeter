@@ -9,7 +9,8 @@
 - Required `bool` parameters raise a clear error.
 - `T | None` / `Optional[T]` are accepted; treated as their inner type with
   `None` as default.
-- `list[T]` becomes a repeated option (`--tag a --tag b`).
+- `list[T]` becomes a repeated option (`--tag a --tag b`). Values supplied on
+  the CLI replace the declared default rather than being appended to it.
 - `tuple[T, U]` consumes a fixed number of values.
 - `tuple[T, ...]` consumes a variable number of values.
 - `Enum` subclasses parse from member values and are rendered as choices.

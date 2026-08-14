@@ -915,20 +915,12 @@ def _add_option(  # pylint: disable=too-many-arguments,too-many-branches,too-man
     if is_list:
         (inner_t,) = get_args(effective)
         inner_t = _resolved_collection_item_type(inner_t, param_name)
-        if envvar_active:
-            list_default = _UNSET
-        else:
-            list_default = (
-                list(default)
-                if has_default and default is not None
-                else ([] if has_default else None)
-            )
         parser.add_argument(
             *flags,
             dest=param_name,
             type=_type_caster(inner_t, param_name, path_checks),
             action="append",
-            default=list_default,
+            default=None,
             required=argparse_required,
             help=rendered_help,
             metavar=metavar,
@@ -1355,16 +1347,24 @@ def _coerce_envvar_value(raw: str, info: _ParamInfo) -> Any:
     return value
 
 
+def _list_default(info: _ParamInfo) -> list[Any]:
+    if info.default is None:
+        return []
+    return list(typing.cast(list[Any], info.default))
+
+
 def _resolve_envvars(
     parser: argparse.ArgumentParser,
     namespace: argparse.Namespace,
     infos: list[_ParamInfo],
 ) -> None:
     for info in infos:
-        if info.envvar is None:
-            continue
         current = getattr(namespace, info.name, _UNSET)
-        if not isinstance(current, _Unset):
+        if info.envvar is None:
+            if info.is_list and current is None:
+                setattr(namespace, info.name, _list_default(info))
+            continue
+        if current is not None and not isinstance(current, _Unset):
             continue
         raw = os.environ.get(info.envvar)
         if raw is not None:
@@ -1373,7 +1373,8 @@ def _resolve_envvars(
             except argparse.ArgumentTypeError as exc:
                 parser.error(f"environment variable {info.envvar}: {exc}")
         elif info.has_default:
-            setattr(namespace, info.name, info.default)
+            value = _list_default(info) if info.is_list else info.default
+            setattr(namespace, info.name, value)
         else:
             raise YeetrError(
                 f"option {info.name!r} requires either a CLI value or "

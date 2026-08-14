@@ -49,6 +49,8 @@ def main(path: InputPath, *, workers: WorkerCount = 4) -> None:
 (`Opt(...)`) inside the metadata slot of `Annotated`. No other syntax is
 accepted by Pyright in strict mode. The `Annotated` form is verbose but is
 the only way to attach per-parameter metadata that fully type-checks.
+Put `Arg(...)` or `Opt(...)` on the parameter's outer `Annotated[...]`, not
+on a `list` or `tuple` element.
 
 ## Environment variable fallback (`Opt(envvar=...)`)
 

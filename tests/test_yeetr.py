@@ -623,6 +623,20 @@ def test_list_repeated_options() -> None:
     assert captured == {"tag": ["a", "b"]}
 
 
+def test_repeated_option_replaces_list_default() -> None:
+    captured: dict[str, object] = {}
+
+    # pylint: disable-next=dangerous-default-value
+    def main(*, model: list[str] = ["default"]) -> None:  # noqa: B006
+        captured["model"] = model
+
+    yeetr.run(main, argv=[])
+    assert captured == {"model": ["default"]}
+
+    yeetr.run(main, argv=["--model", "a", "--model", "b"])
+    assert captured == {"model": ["a", "b"]}
+
+
 def test_opt_alias_and_help() -> None:
     captured: dict[str, object] = {}
 
