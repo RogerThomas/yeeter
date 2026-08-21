@@ -56,6 +56,11 @@ source = "vcs"
 [tool.hatch.build.targets.wheel]
 packages = ["yeetr"]
 
+# Without this, hatchling's sdist default is "every git-tracked file" — which
+# published AGENTS.md, docs/, CI config, etc. to PyPI. Ship only the package.
+[tool.hatch.build.targets.sdist]
+only-include = ["yeetr", "README.md", "LICENSE"]
+
 [tool.pyright]
 include = ["yeetr", "tests"]
 pythonVersion = "3.13"
